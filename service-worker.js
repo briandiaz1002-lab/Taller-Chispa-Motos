@@ -1,12 +1,12 @@
 // ========== SERVICE WORKER — TallerMotos Inventario ==========
-// Estrategia: cache-first para el shell de la app y los recursos externos (CDN).
+// Estrategia: network-first para documentos y cache-first con refresco para assets.
 // IndexedDB NO se ve afectado por este Service Worker — los datos siempre
 // están disponibles offline independientemente del estado del cache.
 
 // Incrementa este número cada vez que publiques cambios en index.html
 // (o en cualquier archivo cacheado) para forzar la actualización del cache
 // en los dispositivos de los usuarios.
-const SW_CACHE_VERSION = 'v1';
+const SW_CACHE_VERSION = 'v6';
 const CACHE_NAME = `tallermotos-cache-${SW_CACHE_VERSION}`;
 
 // Archivos del shell de la app (rutas relativas al repositorio)
@@ -14,9 +14,8 @@ const SHELL_FILES = [
   './',
   './index.html',
   './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/icon-512-maskable.png'
+  './icons/icon.svg',
+  './icons/icon-maskable.svg'
 ];
 
 // CDNs externos usados por la app (Tailwind + ExcelJS + Google Fonts)
@@ -61,10 +60,34 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// ── FETCH: cache-first con actualización en segundo plano (stale-while-revalidate) ──
+// ── FETCH: documentos network-first; assets cache-first con actualización en segundo plano ──
 self.addEventListener('fetch', (event) => {
   // Solo interceptar peticiones GET
   if (event.request.method !== 'GET') return;
+
+  const isNavigationRequest =
+    event.request.mode === 'navigate' ||
+    (event.request.headers.get('accept') || '').includes('text/html');
+
+  if (isNavigationRequest) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.ok) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put('./index.html', responseClone.clone());
+              cache.put(event.request, responseClone);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request).then((cachedResponse) =>
+          cachedResponse || caches.match('./index.html')
+        ))
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
