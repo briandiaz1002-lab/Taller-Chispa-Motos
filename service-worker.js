@@ -6,7 +6,7 @@
 // Incrementa este número cada vez que publiques cambios en index.html
 // (o en cualquier archivo cacheado) para forzar la actualización del cache
 // en los dispositivos de los usuarios.
-const SW_CACHE_VERSION = 'v6';
+const SW_CACHE_VERSION = 'v5';
 const CACHE_NAME = `tallermotos-cache-${SW_CACHE_VERSION}`;
 
 // Archivos del shell de la app (rutas relativas al repositorio)
