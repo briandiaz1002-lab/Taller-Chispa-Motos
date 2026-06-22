@@ -15,7 +15,7 @@ const SHELL_FILES = [
   './index.html',
   './manifest.json',
   './icons/icon.svg',
-  './icons/icon-maskable.svg'
+  './icons/apple-touch-icon.svg'
 ];
 
 // CDNs externos usados por la app (Tailwind + ExcelJS + Google Fonts)
