@@ -4,6 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TechInventory - Sistema de Gestión</title>
+
+    <!-- ── PWA: manifest y meta tags ── -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0F2149">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TallerMotos">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1383,6 +1393,10 @@
             <div class="sidebar-meta sidebar-label" style="margin-top:8px">
                 <div id="currentDate"></div>
                 <div>Últ. cambio: <span id="lastModified">—</span></div>
+                <div id="connectionStatus" style="margin-top:4px;display:flex;align-items:center;gap:5px">
+                    <span id="connectionDot" style="width:7px;height:7px;border-radius:50%;background:#22C55E;display:inline-block"></span>
+                    <span id="connectionLabel">En línea</span>
+                </div>
             </div>
 
             <div id="backupArea" style="margin-bottom:4px">
@@ -1394,6 +1408,11 @@
                     <input type="file" accept=".json" class="hidden" onchange="importBackupJSON(event)">
                 </label>
             </div>
+
+            <!-- ── PWA: botón de instalación (oculto hasta que el navegador lo permita) ── -->
+            <button onclick="installPWA()" id="btnInstallPWA" class="sidebar-action-btn backup" style="display:none;margin-bottom:4px">
+                <span>📲</span><span class="sidebar-label">Instalar app</span>
+            </button>
 
             <button onclick="logout()" id="btnLogout" class="sidebar-action-btn logout">
                 <span>🚪</span><span class="sidebar-label">Cerrar Sesión</span>
@@ -5858,6 +5877,69 @@ function closeMobileSidebar() {
 }
 
 // ========== FIN: JS RESPONSIVE MÓVIL ==========
+
+// ========== INICIO: PWA (Service Worker + Instalación + Estado de conexión) ==========
+
+// ── Registro del Service Worker ──
+// Nota: requiere servirse vía HTTP(S) — no funciona abriendo el archivo con file://
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js')
+            .then((reg) => console.log('[PWA] Service Worker registrado:', reg.scope))
+            .catch((err) => console.warn('[PWA] No se pudo registrar el Service Worker:', err));
+    });
+}
+
+// ── Captura del prompt de instalación nativo del navegador ──
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    const btn = document.getElementById('btnInstallPWA');
+    if (btn) btn.style.display = 'flex';
+});
+
+async function installPWA() {
+    if (!deferredInstallPrompt) {
+        await appAlert('La app ya está instalada o tu navegador no permite instalarla desde aquí.','info','Instalación no disponible');
+        return;
+    }
+    deferredInstallPrompt.prompt();
+    const choice = await deferredInstallPrompt.userChoice;
+    if (choice.outcome === 'accepted') {
+        showToast('La app se está instalando.','success','📲 Instalando');
+    }
+    deferredInstallPrompt = null;
+    document.getElementById('btnInstallPWA').style.display = 'none';
+}
+
+// Si la app ya quedó instalada (evento separado de beforeinstallprompt), ocultar botón
+window.addEventListener('appinstalled', () => {
+    const btn = document.getElementById('btnInstallPWA');
+    if (btn) btn.style.display = 'none';
+    deferredInstallPrompt = null;
+});
+
+// ── Indicador de estado de conexión (online/offline) ──
+// No afecta el funcionamiento de la app: IndexedDB sigue disponible sin conexión.
+function updateConnectionStatus() {
+    const dot   = document.getElementById('connectionDot');
+    const label = document.getElementById('connectionLabel');
+    if (!dot || !label) return;
+    if (navigator.onLine) {
+        dot.style.background = '#22C55E';
+        label.textContent = 'En línea';
+    } else {
+        dot.style.background = '#94A3B8';
+        label.textContent = 'Sin conexión (modo local)';
+    }
+}
+window.addEventListener('online', updateConnectionStatus);
+window.addEventListener('offline', updateConnectionStatus);
+document.addEventListener('DOMContentLoaded', updateConnectionStatus);
+
+// ========== FIN: PWA ==========
 
 </script>
 </body>
