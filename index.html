@@ -1613,8 +1613,7 @@
                 <div style="display:flex;gap:10px">
                     <select id="supervisionFilterUser" style="border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 13px;font-size:13px;font-family:'Plus Jakarta Sans',sans-serif;outline:none;background:white" onchange="loadSupervision()">
                         <option value="">Todas las vendedoras</option>
-                        <option value="Vendedor1">Vendedor 1</option>
-                        <option value="Vendedor2">Vendedor 2</option>
+                        <option value="VendedorTienda">VendedorTienda</option>
                     </select>
                     <select id="supervisionFilterType" style="border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 13px;font-size:13px;font-family:'Plus Jakarta Sans',sans-serif;outline:none;background:white" onchange="loadSupervision()">
                         <option value="">Todos los tipos</option>
@@ -1661,18 +1660,14 @@
                 </div>
                 <button id="btnNewNote" class="btn-primary" onclick="openNoteModal()" style="display:none">＋ Nueva Nota</button>
             </div>
-            <div id="noticeboardAdminStats" style="display:none;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+            <div id="noticeboardAdminStats" style="display:none;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:20px">
                 <div class="stat-card blue" style="padding:18px 20px">
                     <div class="stat-label">Notas activas</div>
                     <div class="stat-value blue" id="notesActiveCount" style="font-size:28px">0</div>
                 </div>
                 <div class="stat-card amber" style="padding:18px 20px">
-                    <div class="stat-label">Sin leer (Vendedor 1)</div>
-                    <div class="stat-value amber" id="notesUnreadV1" style="font-size:28px">0</div>
-                </div>
-                <div class="stat-card amber" style="padding:18px 20px">
-                    <div class="stat-label">Sin leer (Vendedor 2)</div>
-                    <div class="stat-value amber" id="notesUnreadV2" style="font-size:28px">0</div>
+                    <div class="stat-label">Sin leer (Vendedor)</div>
+                    <div class="stat-value amber" id="notesUnreadTienda" style="font-size:28px">0</div>
                 </div>
             </div>
             <div id="notesListContainer" style="display:flex;flex-direction:column;gap:12px"></div>
@@ -1813,6 +1808,7 @@
             <div style="display:flex;gap:2px;background:var(--surface-2);border-radius:var(--radius);padding:4px;margin-bottom:24px;width:fit-content;border:1.5px solid var(--border-2)">
                 <button class="fin-tab-btn fin-tab-active" data-tab="gastos" onclick="switchFinTab('gastos')">💸 Gastos</button>
                 <button class="fin-tab-btn" data-tab="estado" onclick="switchFinTab('estado')">📊 Estado de Resultados</button>
+                <button class="fin-tab-btn" data-tab="alertas" onclick="switchFinTab('alertas')">⚠️ Alertas de Precio</button>
             </div>
 
             <!-- ── PESTAÑA GASTOS ── -->
@@ -1895,6 +1891,20 @@
                     <button onclick="loadPL()" class="btn-secondary" style="font-size:12.5px">🔄 Actualizar</button>
                 </div>
                 <div id="plContainer" class="card" style="overflow:hidden"></div>
+            </div>
+
+            <!-- ── PESTAÑA ALERTAS DE PRECIO ── -->
+            <div id="finTab-alertas" style="display:none">
+                <div class="card" style="overflow:hidden">
+                    <div style="padding:18px 20px;border-bottom:1px solid var(--border-2);display:flex;justify-content:space-between;align-items:center">
+                        <div>
+                            <h3 style="font-size:15px;font-weight:700;color:var(--text-1)">Alertas de Precio por Tasa de Cambio</h3>
+                            <p style="font-size:12.5px;color:var(--text-3);margin-top:2px">Productos cuyo margen se erosionó por variación en la tasa USD</p>
+                        </div>
+                        <button onclick="loadPriceAlerts()" class="btn-secondary" style="font-size:12.5px">🔄 Recalcular</button>
+                    </div>
+                    <div id="alertasContainer" style="padding:20px"></div>
+                </div>
             </div>
         </section>
 
@@ -2150,8 +2160,7 @@
                         <label class="form-label">Dirigido a *</label>
                         <select id="noteTarget" required class="form-input form-select">
                             <option value="all">Todas las vendedoras</option>
-                            <option value="Vendedor1">Vendedor 1</option>
-                            <option value="Vendedor2">Vendedor 2</option>
+                            <option value="VendedorTienda">VendedorTienda (Taller)</option>
                         </select>
                     </div>
                     <div>
@@ -2378,8 +2387,7 @@ document.getElementById('appModalOverlay').addEventListener('click', (e) => {
 // ══ USUARIOS Y ROLES ══
 const USERS = {
     'ChispaMotos': { hash: 'da33a89f1b5252537dc4eda71b4878f88d616b4a030e09ed100ebfa4254d5470', role: 'admin', label: 'Administrador' },
-    'Vendedor1': { hash: 'ec2775656c5ea23e9e98dfa6ea61cdabd643bc982d44b568b0be964bbe90247b', role: 'vendor_tienda', label: 'Vendedor 1' },
-    'Vendedor2': { hash: '79aef1bf609def75c6c16d99207fa08d85fe54c21e77d0a83078af6bdc07d639', role: 'vendor_tienda', label: 'Vendedor 2' }
+    'VendedorTienda': { hash: '0063bc817f3f9d179e392824529edb2a42cc6663aa53f4f018de39878b74bba0', role: 'vendor_tienda', label: 'Vendedor Tienda' }
 };
 const ROLES = {
     admin: { sections:['dashboard','products','movements','reports','supervision','noticeboard','finances'], locations:['Tienda','Almacén central'], movements:['Entrada','Salida','Merma','Transferencia','Devolución'], canViewAllLocations:true, canExport:true, canBackup:true, canEditExchangeRate:true, canDeleteProduct:true, canCreateProduct:true, canQuickSale:true, canViewCost:true },
@@ -2648,7 +2656,7 @@ function initDatabase() {
                         salePrice:    sale,
                         margin,
                         marginPct,
-                        exchangeRate: null,   // null = tasa desconocida en migración
+                        exchangeRate: null,   // null = tasa desconocida en migración; buildPriceAlertsIndex lo maneja
                         date:         p.dateAdded || migrateTS,
                         movementId:   null,
                         isMigrated:   true
@@ -2709,6 +2717,7 @@ async function loadProducts() {
     const products = await getAllRecords('products');
     allProductsCache = products;
     buildProductsIndex();
+    await buildPriceAlertsIndex();   // F4: construir índice de alertas
     // Limpiar selección al entrar a la sección
     selectedProductIds.clear();
     const selAll = document.getElementById('selectAllProducts');
@@ -2746,6 +2755,10 @@ function renderPage() {
         if (product.quantity === 0) { stockCls='badge-zero'; stockTxt='Sin stock'; }
         else if (product.quantity <= product.minStock) { stockCls='badge-danger'; stockTxt='Bajo'; }
         else { stockCls='badge-success'; stockTxt='OK'; }
+        const alert = priceAlertsIndex[product.id];
+        const alertIcon = alert
+            ? `<span title="⚠️ Precio sugerido: ${alert.salePriceNecesario.toFixed(2)} CUP (+${alert.diferencia.toFixed(2)}) para mantener ${alert.marginPct.toFixed(1)}%" style="cursor:help;margin-left:5px;font-size:13px">⚠️</span>`
+            : '';
         const costPendingBadge = (product.costPending && currentRole === 'admin')
             ? `<span title="Sin precio de compra — ingresado por vendedora" style="margin-left:6px;background:#FFF3CD;color:#92400E;border:1px solid #FCD34D;border-radius:4px;padding:1px 6px;font-size:10.5px;font-weight:700;cursor:help">💲 Costo pendiente</span>`
             : '';
@@ -2754,7 +2767,7 @@ function renderPage() {
         tbody.innerHTML += `
             <tr class="${sinStock?'zero-stock-row':''}">
                 <td style="width:40px;text-align:center"><input type="checkbox" class="product-checkbox" data-id="${product.id}" ${isSelected&&!sinStock?'checked':''} ${sinStock?'disabled title="Sin stock — no se puede vender"':''} onchange="toggleProductSelection(${product.id}, this.checked)" style="${sinStock?'opacity:0.3;cursor:not-allowed':''}"></td>
-                <td style="font-weight:600">${product.brand}${costPendingBadge}</td>
+                <td style="font-weight:600">${product.brand}${alertIcon}${costPendingBadge}</td>
                 <td style="color:var(--text-2)">${product.color}</td>
                 <td><span class="badge badge-info">${product.category}</span></td>
                 <td style="font-weight:700;font-size:15px">${product.quantity}</td>
@@ -3959,8 +3972,10 @@ async function saveExchangeRate(event) {
     // Fuente única: IndexedDB — actualizar store y caché en memoria
     await saveExchangeRateToStore('USD', newRate);
     stampLastModified(); updateExchangeRateDisplay(); loadDashboard();
+    // F4: recalcular índice de alertas con la nueva tasa
+    await buildPriceAlertsIndex();
     refreshFinancesBadgeFromIndex();
-    // Re-renderizar Inventario para reflejar el nuevo equivalente en CUP
+    // Si la sección Inventario está visible, re-renderizar para mostrar/ocultar ⚠️
     if (!document.getElementById('products').classList.contains('hidden')) {
         renderPage();
     }
@@ -4606,8 +4621,63 @@ async function exportMovementsExcel() {
 // ══ UTILITIES ══
 function roundCUP(value) { return Math.round((value+Number.EPSILON)*100)/100; }
 
-// ── LB-3: datos del P&L indexados por clave — evita serializar movimientos en onclick ──
-let plExportStore    = {};
+// ── F4: Índice de alertas de precio para la tabla de productos ──
+let priceAlertsIndex = {}; // { productId: { diferencia, salePriceNecesario, marginPct } }
+let plExportStore    = {}; // LB-3: datos del P&L indexados por clave — evita serializar movimientos en onclick
+
+async function buildPriceAlertsIndex() {
+    const allProds   = await getAllRecords('products');
+    const costHist   = await getAllRecords('costHistory');
+    const currentUSD = getExchangeRate();
+    priceAlertsIndex = {};
+
+    // Leer tasa previa — base para productos sin costHistory confiable
+    let previousUSD = currentUSD;
+    try {
+        const storedUSD = await getRecordById('exchangeRates', 'USD');
+        if (storedUSD && storedUSD.previousRate) previousUSD = storedUSD.previousRate;
+    } catch(e) {}
+
+    // Índice: último registro de costHistory con tasa conocida, por producto
+    const byProduct = {};
+    costHist.forEach(h => {
+        if (h.exchangeRate == null || h.exchangeRate <= 0) return;
+        if (!byProduct[h.productId] || h.date > byProduct[h.productId].date) byProduct[h.productId] = h;
+    });
+
+    allProds.forEach(prod => {
+        if (!prod.price || prod.price <= 0) return;
+        if (prod.costPending) return;
+
+        const last = byProduct[prod.id];
+        let tasaOriginal, costPriceBase, marginPct;
+
+        if (last) {
+            // ── Caso A: costHistory confiable con tasa real ──
+            tasaOriginal  = last.exchangeRate;
+            costPriceBase = last.costPrice;
+            marginPct     = (last.marginPct != null && last.marginPct > 0)
+                ? last.marginPct
+                : (prod.marginPct != null && prod.marginPct > 0 ? prod.marginPct : 0);
+        } else {
+            // ── Caso B: sin costHistory — usar tasa previa como base ──
+            // Si no hubo cambio previo aún (previousUSD === currentUSD), no hay alerta todavía.
+            tasaOriginal  = previousUSD;
+            costPriceBase = prod.price;
+            marginPct     = prod.marginPct != null && prod.marginPct > 0 ? prod.marginPct : 0;
+        }
+
+        if (!tasaOriginal || currentUSD <= tasaOriginal) return;
+
+        const costImplicito      = roundCUP(costPriceBase * (currentUSD / tasaOriginal));
+        const salePriceNecesario = marginPct > 0
+            ? roundCUP(costImplicito * (1 + marginPct / 100))
+            : costImplicito; // sin margen: alertar si costo supera precio venta
+        const diferencia = roundCUP(salePriceNecesario - (prod.salePrice || prod.price));
+
+        if (diferencia >= 1) priceAlertsIndex[prod.id] = { diferencia, salePriceNecesario, marginPct };
+    });
+}
 
 // ── F1: Indicador de margen en tiempo real ──
 function updateMarginHint() {
@@ -4910,10 +4980,8 @@ async function loadNoticeboard() {
     }
     if (isAdmin) {
         document.getElementById('notesActiveCount').textContent=allNotes.length;
-        const unreadV1=allNotes.filter(n=>(n.targetUser==='all'||n.targetUser==='Vendedor1')&&!n.readBy.includes('Vendedor1')).length;
-        const unreadV2=allNotes.filter(n=>(n.targetUser==='all'||n.targetUser==='Vendedor2')&&!n.readBy.includes('Vendedor2')).length;
-        document.getElementById('notesUnreadV1').textContent=unreadV1;
-        document.getElementById('notesUnreadV2').textContent=unreadV2;
+        const unreadTienda=allNotes.filter(n=>(n.targetUser==='all'||n.targetUser==='VendedorTienda')&&!n.readBy.includes('VendedorTienda')).length;
+        document.getElementById('notesUnreadTienda').textContent=unreadTienda;
     }
     const container=document.getElementById('notesListContainer');
     const noMsg=document.getElementById('noNotesMsg');
@@ -5095,9 +5163,12 @@ function refreshFinancesBadge() {
 }
 
 function refreshFinancesBadgeFromIndex() {
-    // Badge de alertas de precio eliminado junto con el módulo de devaluación CUP — siempre oculto
+    const count = Object.keys(priceAlertsIndex).length;
     const badge = document.getElementById('financesBadge');
-    if (badge) badge.classList.add('hidden');
+    if (badge) {
+        badge.textContent = count;
+        badge.classList.toggle('hidden', count === 0);
+    }
 }
 
 // ── showSection: agregar finances ──
@@ -5139,6 +5210,7 @@ function switchFinTab(tab) {
     });
     if (tab === 'gastos')  { loadExpenses(); loadCategories(); }
     if (tab === 'estado')  loadPL();
+    if (tab === 'alertas') loadPriceAlerts();
 }
 
 function switchFinSubTab(subtab) {
@@ -5841,6 +5913,91 @@ async function exportPLLine(storeKey) {
     const a      = document.createElement('a');
     a.href = url; a.download = `PL_${label.replace(/[^a-zA-Z0-9]/g,'_')}_${new Date().toISOString().split('T')[0]}.xlsx`; a.click();
     showToast(`Detalle de "${label}" exportado.`,'success','📥 Excel generado');
+}
+
+// ══ ALERTAS DE PRECIO ══
+
+async function loadPriceAlerts() {
+    const container = document.getElementById('alertasContainer');
+    if (!container) return;
+    container.innerHTML = '<p style="color:var(--text-3);font-size:13px">Calculando alertas…</p>';
+
+    // Reconstruir índice siempre al abrir la sección — garantiza datos frescos
+    await buildPriceAlertsIndex();
+    refreshFinancesBadgeFromIndex();
+
+    const currentUSD = getExchangeRate();
+    const alertEntries = Object.entries(priceAlertsIndex); // [productId, {diferencia, salePriceNecesario, marginPct}]
+
+    if (alertEntries.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center;padding:40px;color:var(--text-3)">
+                <p style="font-size:32px;margin-bottom:8px">✅</p>
+                <p style="font-size:15px;font-weight:600">Sin alertas de precio</p>
+                <p style="font-size:13px;margin-top:4px">Los márgenes están dentro del rango esperado con la tasa actual (${currentUSD.toFixed(2)} CUP/USD)</p>
+            </div>`;
+        return;
+    }
+
+    // Cargar productos para mostrar nombres
+    const allProds  = await getAllRecords('products');
+    const prodsById = {};
+    allProds.forEach(p => { prodsById[p.id] = p; });
+
+    // Leer tasa previa para mostrar referencia
+    let previousUSD = null;
+    try {
+        const storedUSD = await getRecordById('exchangeRates', 'USD');
+        if (storedUSD && storedUSD.previousRate) previousUSD = storedUSD.previousRate;
+    } catch(e) {}
+
+    // Construir lista ordenada por diferencia descendente
+    const alerts = alertEntries
+        .map(([pid, data]) => ({ product: prodsById[parseInt(pid)], ...data }))
+        .filter(a => a.product) // descartar si el producto fue eliminado
+        .sort((a, b) => b.diferencia - a.diferencia);
+
+    let html = `
+        <div style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+            <p style="font-size:13px;color:var(--text-2)">
+                Tasa actual: <strong class="mono">${currentUSD.toFixed(2)} CUP/USD</strong>
+                ${previousUSD ? `· Tasa anterior: <strong class="mono">${previousUSD.toFixed(2)}</strong>` : ''}
+                · <strong>${alerts.length}</strong> producto${alerts.length!==1?'s':''} afectado${alerts.length!==1?'s':''}
+            </p>
+        </div>
+        <div class="table-container">
+        <table>
+        <thead><tr>
+            <th>Producto</th><th>Margen</th><th>P. Venta actual</th>
+            <th>P. Sugerido</th><th>Diferencia</th><th>Tasa ref.</th>
+        </tr></thead>
+        <tbody>`;
+
+    for (const a of alerts) {
+        const p           = a.product;
+        const saledActual = roundCUP(p.salePrice || p.price);
+        const marginLabel = a.marginPct > 0 ? `${a.marginPct.toFixed(1)}%` : '—';
+        html += `
+            <tr>
+                <td>
+                    <span style="font-weight:600">${escHtml(p.brand)}</span>
+                    <span style="color:var(--text-2)"> — ${escHtml(p.color)}</span>
+                    <span style="font-size:11.5px;color:var(--text-3);display:block">${escHtml(p.category)} · ${escHtml(p.location)}</span>
+                </td>
+                <td class="mono">${marginLabel}</td>
+                <td class="mono" style="font-weight:600">${saledActual.toFixed(2)} CUP</td>
+                <td class="mono" style="font-weight:700;color:#064E3B">${a.salePriceNecesario.toFixed(2)} CUP</td>
+                <td>
+                    <span style="font-weight:700;color:var(--rose);font-family:'DM Mono',monospace">+${a.diferencia.toFixed(2)} CUP</span>
+                    ${a.marginPct > 0 ? `<span style="font-size:11.5px;color:var(--text-3);display:block">para mantener ${a.marginPct.toFixed(1)}%</span>` : ''}
+                </td>
+                <td style="font-size:11.5px;color:var(--text-3)">
+                    ${previousUSD ? `<strong>${previousUSD.toFixed(0)}</strong> → ${currentUSD.toFixed(0)}` : currentUSD.toFixed(0)}
+                </td>
+            </tr>`;
+    }
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
 }
 
 // ========== INICIO: JS RESPONSIVE MÓVIL ==========
