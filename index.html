@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TechInventory - Sistema de Gestión</title>
+
+    <meta name="theme-color" content="#0F2149">
+    <meta name="application-name" content="PrimordInventory">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PrimordInv">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/svg+xml" href="./icons/icon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -5070,11 +5079,10 @@ async function loadAllData() {
     } catch(e) { /* store aún no existe en upgrade v3→v4 — ignorar, se usará el default */ }
     await migrateMultiItemMovements();
     if (!currentRole||currentRole==='admin') await loadDashboard();
-    // F4: construir índice de alertas al cargar (necesita productos en cache)
+    // Reconstruir índice de productos al cargar; las alertas de precio fueron retiradas.
     const prods = await getAllRecords('products');
     allProductsCache = prods;
     buildProductsIndex();
-    await buildPriceAlertsIndex();
     refreshFinancesBadgeFromIndex();
 }
 function updateCurrentDate() { document.getElementById('currentDate').textContent=new Date().toLocaleDateString('es-ES',{weekday:'short',day:'numeric',month:'short',year:'numeric'}); }
@@ -6017,5 +6025,25 @@ function closeMobileSidebar() {
 // ========== FIN: JS RESPONSIVE MÓVIL ==========
 
 </script>
+
+<script>
+    (() => {
+        const canRegisterServiceWorker =
+            'serviceWorker' in navigator &&
+            ['http:', 'https:'].includes(window.location.protocol);
+
+        if (!canRegisterServiceWorker) return;
+
+        window.addEventListener('load', async () => {
+            try {
+                const registration = await navigator.serviceWorker.register('./service-worker.js', { scope: './' });
+                registration.update();
+            } catch (error) {
+                console.warn('No se pudo registrar el Service Worker:', error);
+            }
+        });
+    })();
+</script>
+
 </body>
 </html>
