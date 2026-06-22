@@ -1,5 +1,5 @@
 // ========== SERVICE WORKER — TallerMotos Inventario ==========
-// Estrategia: cache-first para el shell de la app y los recursos externos (CDN).
+// Estrategia: network-first para documentos y cache-first con refresco para assets.
 // IndexedDB NO se ve afectado por este Service Worker — los datos siempre
 // están disponibles offline independientemente del estado del cache.
 
@@ -60,10 +60,34 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// ── FETCH: cache-first con actualización en segundo plano (stale-while-revalidate) ──
+// ── FETCH: documentos network-first; assets cache-first con actualización en segundo plano ──
 self.addEventListener('fetch', (event) => {
   // Solo interceptar peticiones GET
   if (event.request.method !== 'GET') return;
+
+  const isNavigationRequest =
+    event.request.mode === 'navigate' ||
+    (event.request.headers.get('accept') || '').includes('text/html');
+
+  if (isNavigationRequest) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.ok) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put('./index.html', responseClone.clone());
+              cache.put(event.request, responseClone);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request).then((cachedResponse) =>
+          cachedResponse || caches.match('./index.html')
+        ))
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
