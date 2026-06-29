@@ -5,14 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TechInventory - Sistema de Gestión</title>
 
+    <!-- ── PWA: manifest y meta tags ── -->
+    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0F2149">
-    <meta name="application-name" content="PrimordInventory">
-    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="PrimordInv">
-    <link rel="manifest" href="./manifest.json">
-    <link rel="icon" type="image/svg+xml" href="./icons/icon.svg">
+    <meta name="apple-mobile-web-app-title" content="TallerMotos">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -1392,6 +1393,10 @@
             <div class="sidebar-meta sidebar-label" style="margin-top:8px">
                 <div id="currentDate"></div>
                 <div>Últ. cambio: <span id="lastModified">—</span></div>
+                <div id="connectionStatus" style="margin-top:4px;display:flex;align-items:center;gap:5px">
+                    <span id="connectionDot" style="width:7px;height:7px;border-radius:50%;background:#22C55E;display:inline-block"></span>
+                    <span id="connectionLabel">En línea</span>
+                </div>
             </div>
 
             <div id="backupArea" style="margin-bottom:4px">
@@ -1403,6 +1408,11 @@
                     <input type="file" accept=".json" class="hidden" onchange="importBackupJSON(event)">
                 </label>
             </div>
+
+            <!-- ── PWA: botón de instalación (oculto hasta que el navegador lo permita) ── -->
+            <button onclick="installPWA()" id="btnInstallPWA" class="sidebar-action-btn backup" style="display:none;margin-bottom:4px">
+                <span>📲</span><span class="sidebar-label">Instalar app</span>
+            </button>
 
             <button onclick="logout()" id="btnLogout" class="sidebar-action-btn logout">
                 <span>🚪</span><span class="sidebar-label">Cerrar Sesión</span>
@@ -1431,6 +1441,7 @@
                     <div class="stat-icon green">💰</div>
                     <div class="stat-label">Valor Inventario</div>
                     <div class="stat-value green mono" id="totalValue" style="font-size:22px">$0</div>
+                    <div id="totalValueHint" style="font-size:11px;color:var(--text-3);margin-top:2px">≈ 0.00 CUP</div>
                 </div>
                 <div class="stat-card amber">
                     <div class="stat-icon amber">⚠️</div>
@@ -1441,6 +1452,7 @@
                     <div class="stat-icon purple">🛒</div>
                     <div class="stat-label">Ventas Hoy</div>
                     <div class="stat-value purple mono" id="salesToday" style="font-size:20px">$0</div>
+                    <div id="salesTodayHint" style="font-size:11px;color:var(--text-3);margin-top:2px">≈ 0.00 CUP</div>
                 </div>
             </div>
 
@@ -1458,12 +1470,12 @@
                         <p style="font-size:11px;color:var(--text-3);margin-top:2px">CUP por 1 USD</p>
                     </div>
                     <div class="exchange-card">
-                        <p style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;font-weight:600">Valor en CUP</p>
-                        <p class="mono" style="font-size:20px;font-weight:700;color:#064E3B" id="totalValueCUP">0.00 CUP</p>
-                    </div>
-                    <div class="exchange-card">
                         <p style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;font-weight:600">Valor en USD</p>
                         <p class="mono" style="font-size:20px;font-weight:700;color:#3B0764" id="totalValueUSD">$0.00</p>
+                    </div>
+                    <div class="exchange-card">
+                        <p style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;font-weight:600">Equivalente CUP</p>
+                        <p class="mono" style="font-size:20px;font-weight:700;color:#064E3B" id="totalValueCUP">0.00 CUP</p>
                     </div>
                 </div>
             </div>
@@ -1488,6 +1500,20 @@
                     <p class="page-subtitle">Gestión de inventario</p>
                 </div>
                 <button id="btnNewProduct" class="btn-primary">＋ Nuevo Producto</button>
+            </div>
+            <!-- ── Cuadro de tasa de cambio diaria — solo visible para vendedores ── -->
+            <div id="vendorExchangeRateBox" class="hidden card" style="padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:16px;background:#F0F9FF;border:1.5px solid #BAE6FD">
+                <div style="display:flex;align-items:center;gap:10px">
+                    <span style="font-size:22px">💱</span>
+                    <div>
+                        <p style="font-size:12px;font-weight:700;color:var(--text-1);text-transform:uppercase;letter-spacing:0.4px">Tasa de Cambio del Día</p>
+                        <p style="font-size:11.5px;color:var(--text-3)">1 USD = <span id="vendorCurrentRate" class="mono" style="font-weight:700;color:var(--navy)">0.00</span> CUP — los precios en CUP se actualizan con esta tasa</p>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <input type="number" id="vendorRateInput" min="0.01" step="0.01" placeholder="Nueva tasa" style="width:120px;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:7px 11px;font-size:13px;font-family:'DM Mono',monospace;outline:none">
+                    <button onclick="saveVendorExchangeRate()" class="btn-primary" style="font-size:12.5px;padding:8px 16px">Actualizar</button>
+                </div>
             </div>
             <div class="card" style="padding:16px;margin-bottom:16px">
                 <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px">
@@ -1587,7 +1613,7 @@
                                 <th>Producto(s)</th>
                                 <th>Cantidad</th>
                                 <th>Desde</th>
-                                <th id="thSalePrice" class="hidden">Precio Venta</th>
+                                <th id="thSalePrice" class="hidden">Total Venta</th>
                                 <th id="thProfit" class="hidden">Ganancia</th>
                                 <th>Notas</th>
                                 <th>Acción</th>
@@ -1613,7 +1639,8 @@
                 <div style="display:flex;gap:10px">
                     <select id="supervisionFilterUser" style="border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 13px;font-size:13px;font-family:'Plus Jakarta Sans',sans-serif;outline:none;background:white" onchange="loadSupervision()">
                         <option value="">Todas las vendedoras</option>
-                        <option value="VendedorTienda">VendedorTienda</option>
+                        <option value="Vendedor1">Vendedor 1</option>
+                        <option value="Vendedor2">Vendedor 2</option>
                     </select>
                     <select id="supervisionFilterType" style="border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 13px;font-size:13px;font-family:'Plus Jakarta Sans',sans-serif;outline:none;background:white" onchange="loadSupervision()">
                         <option value="">Todos los tipos</option>
@@ -1660,14 +1687,18 @@
                 </div>
                 <button id="btnNewNote" class="btn-primary" onclick="openNoteModal()" style="display:none">＋ Nueva Nota</button>
             </div>
-            <div id="noticeboardAdminStats" style="display:none;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:20px">
+            <div id="noticeboardAdminStats" style="display:none;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
                 <div class="stat-card blue" style="padding:18px 20px">
                     <div class="stat-label">Notas activas</div>
                     <div class="stat-value blue" id="notesActiveCount" style="font-size:28px">0</div>
                 </div>
                 <div class="stat-card amber" style="padding:18px 20px">
-                    <div class="stat-label">Sin leer (Vendedor)</div>
-                    <div class="stat-value amber" id="notesUnreadTienda" style="font-size:28px">0</div>
+                    <div class="stat-label">Sin leer (Vendedor 1)</div>
+                    <div class="stat-value amber" id="notesUnreadV1" style="font-size:28px">0</div>
+                </div>
+                <div class="stat-card amber" style="padding:18px 20px">
+                    <div class="stat-label">Sin leer (Vendedor 2)</div>
+                    <div class="stat-value amber" id="notesUnreadV2" style="font-size:28px">0</div>
                 </div>
             </div>
             <div id="notesListContainer" style="display:flex;flex-direction:column;gap:12px"></div>
@@ -1722,7 +1753,7 @@
                         <p class="mono" style="font-size:20px;font-weight:700;color:#064E3B" id="dailySalesCount">0</p>
                     </div>
                     <div class="report-stat-card">
-                        <p style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:8px">Total en CUP</p>
+                        <p style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:8px">Equivalente CUP</p>
                         <p class="mono" style="font-size:20px;font-weight:700;color:#3B0764" id="dailySalesCUP">$0.00</p>
                     </div>
                     <div class="report-stat-card">
@@ -1755,9 +1786,9 @@
                                 <th>P. Compra</th>
                                 <th>P. Venta</th>
                                 <th>Gan. Unit.</th>
-                                <th>Total CUP</th>
-                                <th>Gan. CUP</th>
+                                <th>Total USD</th>
                                 <th>Gan. USD</th>
+                                <th>Tasa / CUP</th>
                                 <th>Ubicación</th>
                             </tr>
                         </thead>
@@ -1775,9 +1806,9 @@
                                 <th>Uds. Vendidas</th>
                                 <th>P. Compra Prom.</th>
                                 <th>P. Venta Prom.</th>
-                                <th>Total CUP</th>
-                                <th>Gan. CUP</th>
+                                <th>Total USD</th>
                                 <th>Gan. USD</th>
+                                <th>Equiv. CUP</th>
                             </tr>
                         </thead>
                         <tbody id="summaryTableBody"></tbody>
@@ -1808,7 +1839,6 @@
             <div style="display:flex;gap:2px;background:var(--surface-2);border-radius:var(--radius);padding:4px;margin-bottom:24px;width:fit-content;border:1.5px solid var(--border-2)">
                 <button class="fin-tab-btn fin-tab-active" data-tab="gastos" onclick="switchFinTab('gastos')">💸 Gastos</button>
                 <button class="fin-tab-btn" data-tab="estado" onclick="switchFinTab('estado')">📊 Estado de Resultados</button>
-                <button class="fin-tab-btn" data-tab="alertas" onclick="switchFinTab('alertas')">⚠️ Alertas de Precio</button>
             </div>
 
             <!-- ── PESTAÑA GASTOS ── -->
@@ -1892,20 +1922,6 @@
                 </div>
                 <div id="plContainer" class="card" style="overflow:hidden"></div>
             </div>
-
-            <!-- ── PESTAÑA ALERTAS DE PRECIO ── -->
-            <div id="finTab-alertas" style="display:none">
-                <div class="card" style="overflow:hidden">
-                    <div style="padding:18px 20px;border-bottom:1px solid var(--border-2);display:flex;justify-content:space-between;align-items:center">
-                        <div>
-                            <h3 style="font-size:15px;font-weight:700;color:var(--text-1)">Alertas de Precio por Tasa de Cambio</h3>
-                            <p style="font-size:12.5px;color:var(--text-3);margin-top:2px">Productos cuyo margen se erosionó por variación en la tasa USD</p>
-                        </div>
-                        <button onclick="loadPriceAlerts()" class="btn-secondary" style="font-size:12.5px">🔄 Recalcular</button>
-                    </div>
-                    <div id="alertasContainer" style="padding:20px"></div>
-                </div>
-            </div>
         </section>
 
     </main>
@@ -1954,12 +1970,13 @@
                         <p id="productQtyHint" class="hidden" style="font-size:11.5px;color:var(--amber);margin-top:5px">🔒 Bloqueado en edición. Usa un movimiento para cambiar el stock.</p>
                     </div>
                     <div id="productPriceRow">
-                        <label class="form-label">Precio de Compra *</label>
+                        <label class="form-label">Precio de Compra (USD) *</label>
                         <input type="number" id="productPrice" min="0" step="0.01" class="form-input">
                     </div>
                     <div>
-                        <label class="form-label">Precio de Venta (CUP) *</label>
-                        <input type="number" id="productSalePrice" required min="0" step="0.01" class="form-input" placeholder="Precio al cliente">
+                        <label class="form-label">Precio de Venta (USD) *</label>
+                        <input type="number" id="productSalePrice" required min="0" step="0.01" class="form-input" placeholder="Precio al cliente en USD">
+                        <p id="productSalePriceCUPHint" style="font-size:11.5px;color:var(--text-3);margin-top:5px">Equivalente: <span id="productSalePriceCUPValue" class="mono">—</span> CUP</p>
                     </div>
                     <!-- F1: Indicador de ganancia en tiempo real -->
                     <div style="grid-column:1/-1">
@@ -2057,7 +2074,7 @@
             <div id="multiSaleItemsList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px"></div>
             <div class="ms-total-box">
                 <span style="font-size:15px;font-weight:700;color:var(--text-1)">Total</span>
-                <span class="mono" style="font-size:22px;font-weight:800;color:#064E3B" id="multiSaleTotal">0.00 CUP</span>
+                <span class="mono" style="font-size:22px;font-weight:800;color:#064E3B" id="multiSaleTotal">$0.00 USD</span>
             </div>
             <div style="margin-top:12px">
                 <label class="form-label">Nota <span style="color:var(--text-3);font-weight:400">(opcional)</span></label>
@@ -2091,15 +2108,15 @@
                     <div class="qs-info-box">
                         <div class="qs-row" id="qsCostRow">
                             <span style="color:var(--text-3)">Precio de compra</span>
-                            <span class="mono" style="font-weight:600" id="qpCost">0.00 CUP</span>
+                            <span class="mono" style="font-weight:600" id="qpCost">$0.00 USD</span>
                         </div>
                         <div class="qs-row">
                             <span style="color:var(--text-3)">Precio de venta</span>
-                            <span class="mono" style="font-weight:700;color:var(--emerald)" id="qpSale">0.00 CUP</span>
+                            <span class="mono" style="font-weight:700;color:var(--emerald)" id="qpSale">$0.00 USD</span>
                         </div>
                         <div class="qs-row" id="qsProfitRow">
                             <span style="color:var(--text-3)">Ganancia unitaria</span>
-                            <span class="mono" style="font-weight:600" id="qpProfit">0.00 CUP</span>
+                            <span class="mono" style="font-weight:600" id="qpProfit">$0.00 USD</span>
                         </div>
                     </div>
                     <div>
@@ -2160,7 +2177,8 @@
                         <label class="form-label">Dirigido a *</label>
                         <select id="noteTarget" required class="form-input form-select">
                             <option value="all">Todas las vendedoras</option>
-                            <option value="VendedorTienda">VendedorTienda (Taller)</option>
+                            <option value="Vendedor1">Vendedor 1</option>
+                            <option value="Vendedor2">Vendedor 2</option>
                         </select>
                     </div>
                     <div>
@@ -2387,11 +2405,12 @@ document.getElementById('appModalOverlay').addEventListener('click', (e) => {
 // ══ USUARIOS Y ROLES ══
 const USERS = {
     'ChispaMotos': { hash: 'da33a89f1b5252537dc4eda71b4878f88d616b4a030e09ed100ebfa4254d5470', role: 'admin', label: 'Administrador' },
-    'VendedorTienda': { hash: '0063bc817f3f9d179e392824529edb2a42cc6663aa53f4f018de39878b74bba0', role: 'vendor_tienda', label: 'Vendedor Tienda' }
+    'Vendedor1': { hash: 'ec2775656c5ea23e9e98dfa6ea61cdabd643bc982d44b568b0be964bbe90247b', role: 'vendor_tienda', label: 'Vendedor 1' },
+    'Vendedor2': { hash: '79aef1bf609def75c6c16d99207fa08d85fe54c21e77d0a83078af6bdc07d639', role: 'vendor_tienda', label: 'Vendedor 2' }
 };
 const ROLES = {
     admin: { sections:['dashboard','products','movements','reports','supervision','noticeboard','finances'], locations:['Tienda','Almacén central'], movements:['Entrada','Salida','Merma','Transferencia','Devolución'], canViewAllLocations:true, canExport:true, canBackup:true, canEditExchangeRate:true, canDeleteProduct:true, canCreateProduct:true, canQuickSale:true, canViewCost:true },
-    vendor_tienda: { sections:['products','movements','noticeboard'], locations:['Tienda','Almacén central'], movements:['Entrada','Salida','Merma','Devolución'], canViewAllLocations:false, canExport:false, canBackup:true, canEditExchangeRate:false, canDeleteProduct:false, canCreateProduct:true, canQuickSale:true, canViewCost:false, entradaCreateOnly:true }
+    vendor_tienda: { sections:['products','movements','noticeboard'], locations:['Tienda','Almacén central'], movements:['Entrada','Salida','Merma','Devolución'], canViewAllLocations:false, canExport:false, canBackup:true, canEditExchangeRate:true, canDeleteProduct:false, canCreateProduct:true, canQuickSale:true, canViewCost:false, entradaCreateOnly:true }
 };
 let currentUser = null, currentRole = null;
 
@@ -2656,7 +2675,7 @@ function initDatabase() {
                         salePrice:    sale,
                         margin,
                         marginPct,
-                        exchangeRate: null,   // null = tasa desconocida en migración; buildPriceAlertsIndex lo maneja
+                        exchangeRate: null,   // null = tasa desconocida en migración
                         date:         p.dateAdded || migrateTS,
                         movementId:   null,
                         isMigrated:   true
@@ -2717,7 +2736,6 @@ async function loadProducts() {
     const products = await getAllRecords('products');
     allProductsCache = products;
     buildProductsIndex();
-    await buildPriceAlertsIndex();   // F4: construir índice de alertas
     // Limpiar selección al entrar a la sección
     selectedProductIds.clear();
     const selAll = document.getElementById('selectAllProducts');
@@ -2725,6 +2743,17 @@ async function loadProducts() {
     updateFloatingBar();
     renderProductsTable(products);
     populateProductSelects(products);
+    // Cuadro de tasa de cambio diaria — solo visible para roles con canEditExchangeRate y SIN acceso a Dashboard
+    const rateBox = document.getElementById('vendorExchangeRateBox');
+    if (rateBox) {
+        const role = currentRole ? ROLES[currentRole] : null;
+        const showBox = role && role.canEditExchangeRate && !role.sections.includes('dashboard');
+        rateBox.classList.toggle('hidden', !showBox);
+        if (showBox) {
+            document.getElementById('vendorCurrentRate').textContent = getExchangeRate().toFixed(2);
+            document.getElementById('vendorRateInput').value = '';
+        }
+    }
 }
 
 const PAGE_SIZE = 50;
@@ -2755,32 +2784,34 @@ function renderPage() {
         if (product.quantity === 0) { stockCls='badge-zero'; stockTxt='Sin stock'; }
         else if (product.quantity <= product.minStock) { stockCls='badge-danger'; stockTxt='Bajo'; }
         else { stockCls='badge-success'; stockTxt='OK'; }
-        const alert = priceAlertsIndex[product.id];
-        const alertIcon = alert
-            ? `<span title="⚠️ Precio sugerido: ${alert.salePriceNecesario.toFixed(2)} CUP (+${alert.diferencia.toFixed(2)}) para mantener ${alert.marginPct.toFixed(1)}%" style="cursor:help;margin-left:5px;font-size:13px">⚠️</span>`
-            : '';
         const costPendingBadge = (product.costPending && currentRole === 'admin')
             ? `<span title="Sin precio de compra — ingresado por vendedora" style="margin-left:6px;background:#FFF3CD;color:#92400E;border:1px solid #FCD34D;border-radius:4px;padding:1px 6px;font-size:10.5px;font-weight:700;cursor:help">💲 Costo pendiente</span>`
             : '';
-        const isSelected = selectedProductIds.has(product.id);
-        const sinStock   = product.quantity === 0;
+        const isSelected   = selectedProductIds.has(product.id);
+        const sinStock     = product.quantity === 0;
+        const noSaleLoc    = product.location === 'Almacén central';
+        const checkboxBlocked = sinStock || noSaleLoc;
+        const checkboxTitle = noSaleLoc ? 'Almacén central no permite venta directa' : (sinStock ? 'Sin stock — no se puede vender' : '');
         tbody.innerHTML += `
             <tr class="${sinStock?'zero-stock-row':''}">
-                <td style="width:40px;text-align:center"><input type="checkbox" class="product-checkbox" data-id="${product.id}" ${isSelected&&!sinStock?'checked':''} ${sinStock?'disabled title="Sin stock — no se puede vender"':''} onchange="toggleProductSelection(${product.id}, this.checked)" style="${sinStock?'opacity:0.3;cursor:not-allowed':''}"></td>
-                <td style="font-weight:600">${product.brand}${alertIcon}${costPendingBadge}</td>
+                <td style="width:40px;text-align:center"><input type="checkbox" class="product-checkbox" data-id="${product.id}" ${isSelected&&!checkboxBlocked?'checked':''} ${checkboxBlocked?`disabled title="${checkboxTitle}"`:''} onchange="toggleProductSelection(${product.id}, this.checked)" style="${checkboxBlocked?'opacity:0.3;cursor:not-allowed':''}"></td>
+                <td style="font-weight:600">${product.brand}${costPendingBadge}</td>
                 <td style="color:var(--text-2)">${product.color}</td>
                 <td><span class="badge badge-info">${product.category}</span></td>
                 <td style="font-weight:700;font-size:15px">${product.quantity}</td>
                 <td>
                     ${ROLES[currentRole].canViewCost ? `<span class="price-display" style="color:var(--text-2)">$${roundCUP(product.price).toFixed(2)}</span>` : ''}
-                    <span class="price-display" style="color:#065F46;${ROLES[currentRole].canViewCost?'display:block;font-size:12px;font-weight:700':''}">↗ $${roundCUP(product.salePrice||product.price).toFixed(2)}</span>
+                    <span class="price-display" style="color:#065F46;${ROLES[currentRole].canViewCost?'display:block;font-size:12px;font-weight:700':''}">↗ $${roundCUP(product.salePrice||product.price).toFixed(2)} USD</span>
+                    <span style="display:block;font-size:11px;color:var(--text-3)">≈ ${roundCUP((product.salePrice||product.price)*getExchangeRate()).toFixed(2)} CUP</span>
                 </td>
                 <td><span class="badge badge-info" style="background:#F0F7FF;color:var(--navy-light)">${product.location}</span></td>
                 <td style="color:var(--text-3);font-size:13px">${days}d</td>
                 <td><span class="badge ${stockCls}">${stockTxt}</span></td>
                 <td>
                     <div style="display:flex;align-items:center;gap:6px">
-                        <button class="btn-sale btn-quick-sale" data-id="${product.id}">💰 Vender</button>
+                        ${noSaleLoc
+                            ? `<span class="btn-sale" style="opacity:0.35;cursor:not-allowed;background:var(--surface-2);color:var(--text-3)" title="Almacén central no permite venta directa">💰 Vender</span>`
+                            : `<button class="btn-sale btn-quick-sale" data-id="${product.id}">💰 Vender</button>`}
                         <button class="btn-icon btn-edit-product" data-id="${product.id}" title="Editar">✏️</button>
                         <button class="btn-icon danger btn-delete-product" data-id="${product.id}" title="Eliminar">🗑️</button>
                     </div>
@@ -2884,8 +2915,8 @@ function openProductModal(productId=null) {
             document.getElementById('productSalePrice').value = product.salePrice||'';
             document.getElementById('productLocation').value = product.location;
             document.getElementById('productMinStock').value = product.minStock;
-            // F1: mostrar margen actual al editar (solo admin)
-            if (role.canViewCost) setTimeout(updateMarginHint, 50);
+            // F1: mostrar margen actual al editar (solo admin) + equivalente CUP (todos los roles)
+            setTimeout(updateMarginHint, 50);
             const qtyInput = document.getElementById('productQuantity');
             qtyInput.disabled = true;
             document.getElementById('productQtyHint').classList.remove('hidden');
@@ -3102,13 +3133,18 @@ function escHtml(str) {
 
 function toggleProductSelection(productId, checked) {
     if (checked) {
-        // Verificar stock en cache antes de añadir
+        // Verificar stock y locación en cache antes de añadir
         const prod = allProductsCache.find(p => p.id === productId);
         if (prod && prod.quantity === 0) {
-            // Desmarcar el checkbox visualmente
             const cb = document.querySelector(`.product-checkbox[data-id="${productId}"]`);
             if (cb) cb.checked = false;
             showToast(`"${escHtml(prod.brand)}" no tiene stock disponible.`, 'warning', '⚠️ Sin stock');
+            return;
+        }
+        if (prod && prod.location === 'Almacén central') {
+            const cb = document.querySelector(`.product-checkbox[data-id="${productId}"]`);
+            if (cb) cb.checked = false;
+            showToast(`"${escHtml(prod.brand)}" está en Almacén central — no se puede vender directamente.`, 'warning', '⚠️ Venta no permitida');
             return;
         }
         selectedProductIds.add(productId);
@@ -3119,16 +3155,16 @@ function toggleProductSelection(productId, checked) {
 }
 
 function toggleSelectAll(checked) {
-    // Solo seleccionar productos con stock > 0
+    // Solo seleccionar productos con stock > 0 y fuera de Almacén central
     filteredProductsCache.forEach(p => {
-        if (checked && p.quantity > 0) selectedProductIds.add(p.id);
+        if (checked && p.quantity > 0 && p.location !== 'Almacén central') selectedProductIds.add(p.id);
         else selectedProductIds.delete(p.id);
     });
     document.querySelectorAll('.product-checkbox').forEach(cb => {
         if (cb.id === 'selectAllProducts') return;
         const pid = parseInt(cb.dataset.id);
         const prod = allProductsCache.find(p => p.id === pid);
-        cb.checked = checked && prod && prod.quantity > 0;
+        cb.checked = checked && prod && prod.quantity > 0 && prod.location !== 'Almacén central';
     });
     updateFloatingBar();
 }
@@ -3159,8 +3195,10 @@ async function openMultiSaleModal() {
 
     const listEl = document.getElementById('multiSaleItemsList');
     listEl.innerHTML = '';
+    const rate = getExchangeRate();
     selected.sort((a,b) => a.brand.localeCompare(b.brand)).forEach(p => {
         const sp       = roundCUP(p.salePrice || p.price || 0);
+        const spCUP    = roundCUP(sp * rate);
         const sinStock = p.quantity === 0;
         const div      = document.createElement('div');
         div.className  = 'ms-sale-item';
@@ -3172,7 +3210,8 @@ async function openMultiSaleModal() {
                     <span style="font-size:12px;color:var(--text-3)">${escHtml(p.category||'—')} · ${escHtml(p.location||'')}</span>
                 </div>
                 <div style="text-align:right;flex-shrink:0;margin-left:12px">
-                    <span class="mono" style="font-weight:700;color:#065F46;font-size:14px;display:block">${sp.toFixed(2)} CUP/u</span>
+                    <span class="mono" style="font-weight:700;color:#065F46;font-size:14px;display:block">$${sp.toFixed(2)}/u</span>
+                    <span style="font-size:11px;color:var(--text-3)">≈ ${spCUP.toFixed(2)} CUP/u</span>
                     <span style="font-size:11.5px;color:${sinStock?'var(--rose)':'var(--text-3)'}">Stock: ${p.quantity}</span>
                 </div>
             </div>
@@ -3186,7 +3225,7 @@ async function openMultiSaleModal() {
                     oninput="updateMultiSaleTotal()">
                 <div style="flex:1;text-align:right">
                     <span style="font-size:12px;color:var(--text-3)">Subtotal</span>
-                    <span class="mono ms-subtotal" style="font-weight:700;color:#065F46;display:block;font-size:14px">${sinStock?'0.00':sp.toFixed(2)} CUP</span>
+                    <span class="mono ms-subtotal" style="font-weight:700;color:#065F46;display:block;font-size:14px">$${sinStock?'0.00':sp.toFixed(2)}</span>
                 </div>
             </div>
             ${sinStock ? '<p style="font-size:11.5px;color:var(--rose);margin-top:8px;font-weight:600">⚠️ Sin stock — no se incluirá en la venta</p>' : ''}`;
@@ -3210,10 +3249,11 @@ function updateMultiSaleTotal() {
         const sub   = roundCUP(qty * price);
         total       = roundCUP(total + sub);
         const subEl = input.closest('.ms-sale-item')?.querySelector('.ms-subtotal');
-        if (subEl) subEl.textContent = `${sub.toFixed(2)} CUP`;
+        if (subEl) subEl.textContent = `$${sub.toFixed(2)}`;
     });
     const totalEl = document.getElementById('multiSaleTotal');
-    if (totalEl) totalEl.textContent = `${total.toFixed(2)} CUP`;
+    const totalCUP = roundCUP(total * getExchangeRate());
+    if (totalEl) totalEl.textContent = `$${total.toFixed(2)} USD ≈ ${totalCUP.toFixed(2)} CUP`;
 }
 
 function closeMultiSaleModal() {
@@ -3274,7 +3314,8 @@ async function confirmMultiSale() {
                 date:           saleTimestamp,
                 undone:         false,
                 registeredBy:   currentUser || 'Admin',
-                supervisorNote: null
+                supervisorNote: null,
+                exchangeRateUsed: getExchangeRate()
             });
             totalSale = roundCUP(totalSale + roundCUP(item.salePrice * item.quantity));
         }
@@ -3285,7 +3326,8 @@ async function confirmMultiSale() {
         const selAll = document.getElementById('selectAllProducts');
         if (selAll) selAll.checked = false;
         updateFloatingBar();
-        showToast(`${items.length} venta${items.length!==1?'s':''} registrada${items.length!==1?'s':''} · Total: ${totalSale.toFixed(2)} CUP`, 'success', '💰 Venta completada');
+        const totalSaleCUP = roundCUP(totalSale * getExchangeRate());
+        showToast(`${items.length} venta${items.length!==1?'s':''} registrada${items.length!==1?'s':''} · Total: $${totalSale.toFixed(2)} USD (≈ ${totalSaleCUP.toFixed(2)} CUP)`, 'success', '💰 Venta completada');
         loadProducts(); loadDashboard();
 
     } finally {
@@ -3299,6 +3341,10 @@ async function confirmMultiSale() {
 async function openQuickSaleModal(productId) {
     const product = await getRecordById('products', productId);
     if (!product) return;
+    if (product.location === 'Almacén central') {
+        await appAlert('Los productos en Almacén central no se pueden vender directamente. Transfiérelo a Tienda primero.','warning','Venta no permitida');
+        return;
+    }
     const salePrice = product.salePrice||product.price;
     const profit = salePrice-product.price;
     const canViewCost = ROLES[currentRole].canViewCost;
@@ -3309,10 +3355,11 @@ async function openQuickSaleModal(productId) {
     document.getElementById('quickSaleQuantity').value = 1;
     document.getElementById('quickSaleQuantity').max = product.quantity;
     document.getElementById('quickSaleNotes').value = '';
-    document.getElementById('qpCost').textContent = product.price.toFixed(2)+' CUP';
-    document.getElementById('qpSale').textContent = salePrice.toFixed(2)+' CUP';
+    const rate = getExchangeRate();
+    document.getElementById('qpCost').textContent = `$${product.price.toFixed(2)} USD (≈ ${roundCUP(product.price*rate).toFixed(2)} CUP)`;
+    document.getElementById('qpSale').textContent = `$${salePrice.toFixed(2)} USD (≈ ${roundCUP(salePrice*rate).toFixed(2)} CUP)`;
     const profitEl = document.getElementById('qpProfit');
-    profitEl.textContent = profit.toFixed(2)+' CUP';
+    profitEl.textContent = `$${profit.toFixed(2)} USD`;
     profitEl.style.color = profit<0?'var(--rose)':'var(--emerald)';
     // Ocultar precio compra y ganancia para vendedoras
     const costRow   = document.getElementById('qsCostRow');
@@ -3336,7 +3383,7 @@ async function saveQuickSale(event) {
     const frozenSalePrice=roundCUP(product.salePrice||product.price);
     product.quantity-=quantity;
     await updateRecord('products',product);
-    await addRecord('movements',{ type:'Salida', items:[{productId,quantity,salePrice:frozenSalePrice,costPrice:frozenCostPrice,location:product.location}], sourceLocation:product.location, notes:notes||'Venta rápida', date:Date.now(), undone:false, registeredBy:currentUser||'Admin' });
+    await addRecord('movements',{ type:'Salida', items:[{productId,quantity,salePrice:frozenSalePrice,costPrice:frozenCostPrice,location:product.location}], sourceLocation:product.location, notes:notes||'Venta rápida', date:Date.now(), undone:false, registeredBy:currentUser||'Admin', exchangeRateUsed:getExchangeRate() });
     stampLastModified();
     showToast('La venta fue registrada correctamente.','success','💰 Venta completada');
     closeQuickSaleModal(); loadMovements(); loadProducts(); loadDashboard();
@@ -3393,12 +3440,14 @@ function filterProductDropdown(idx, forcedLocation=null) {
     if (!searchEl||!dropdown) return;
     const query=searchEl.value.toLowerCase();
     const filterLoc=forcedLocation!==null?forcedLocation:document.getElementById('movementSourceLocation').value;
+    const movType=document.getElementById('movementType').value;
     const alreadySelected=getSelectedProductIds(idx);
     const filtered=allProductsCache.filter(p=>{
         const matchLoc=!filterLoc||p.location===filterLoc;
+        const matchSaleLoc=movType!=='Salida'||p.location!=='Almacén central';
         const matchQuery=!query||p.brand.toLowerCase().includes(query)||p.color.toLowerCase().includes(query)||p.category.toLowerCase().includes(query)||p.location.toLowerCase().includes(query);
         const notDuplicate=!alreadySelected.has(p.id);
-        return matchLoc&&matchQuery&&notDuplicate;
+        return matchLoc&&matchSaleLoc&&matchQuery&&notDuplicate;
     });
     dropdown.innerHTML='';
     if (filtered.length===0) { dropdown.innerHTML='<div class="product-option no-results">No se encontraron productos</div>'; }
@@ -3409,7 +3458,7 @@ function filterProductDropdown(idx, forcedLocation=null) {
             const div=document.createElement('div');
             div.className='product-option'; div.dataset.id=p.id;
             div.innerHTML=`<div class="opt-name">${p.brand} <span style="color:var(--text-3);font-weight:400">— ${p.color}</span></div>
-                <div class="opt-meta">${p.category} · ${p.location} · Stock: <span style="color:${stockColor};font-weight:700">${p.quantity}</span> · Venta: ${sp.toFixed(2)} CUP</div>`;
+                <div class="opt-meta">${p.category} · ${p.location} · Stock: <span style="color:${stockColor};font-weight:700">${p.quantity}</span> · Venta: $${sp.toFixed(2)}</div>`;
             div.addEventListener('mousedown', (e)=>{ e.preventDefault(); selectProductInItem(idx,p.id); });
             dropdown.appendChild(div);
         });
@@ -3455,7 +3504,7 @@ function selectProductInItem(idx, productId) {
         else { qtyInput.max=product.quantity; }
         qtyInput.disabled=false; qtyInput.focus();
     }
-    if (saleLabelEl) { const sp=product.salePrice||product.price; saleLabelEl.textContent=sp.toFixed(2)+' CUP'; }
+    if (saleLabelEl) { const sp=product.salePrice||product.price; const spCUP=roundCUP(sp*getExchangeRate()); saleLabelEl.textContent=`$${sp.toFixed(2)} (≈ ${spCUP.toFixed(2)} CUP)`; }
 }
 document.addEventListener('click', (e)=>{ if (!e.target.closest('.product-search-wrap')) document.querySelectorAll('.product-dropdown').forEach(d=>d.classList.remove('open')); });
 
@@ -3557,12 +3606,14 @@ function renderMovementsPage() {
         let saleCells = '';
         if (hasSales) {
             if (movement.type==='Salida') {
-                const iSale=roundCUP((item.salePrice||0)*item.quantity);
-                const iProfit=roundCUP(((item.salePrice||0)-(item.costPrice||0))*item.quantity);
+                const iSaleUSD   = roundCUP((item.salePrice||0)*item.quantity);
+                const iProfitUSD = roundCUP(((item.salePrice||0)-(item.costPrice||0))*item.quantity);
+                const histRate   = movement.exchangeRateUsed || getExchangeRate();
+                const iSaleCUP   = roundCUP(iSaleUSD * histRate);
                 if (ROLES[currentRole].canViewCost) {
-                    saleCells=`<td class="mono" style="font-weight:600;color:#064E3B">${iSale.toFixed(2)} CUP</td><td class="mono" style="font-weight:600;color:${iProfit<0?'var(--rose)':'#065F46'}">${iProfit.toFixed(2)} CUP</td>`;
+                    saleCells=`<td class="mono" style="font-weight:600;color:#064E3B">$${iSaleUSD.toFixed(2)}<br><span style="font-size:11px;color:var(--text-3);font-weight:400">≈ ${iSaleCUP.toFixed(2)} CUP</span></td><td class="mono" style="font-weight:600;color:${iProfitUSD<0?'var(--rose)':'#065F46'}">$${iProfitUSD.toFixed(2)}</td>`;
                 } else {
-                    saleCells=`<td class="mono" style="font-weight:600;color:#064E3B">${iSale.toFixed(2)} CUP</td><td style="color:var(--text-3)">—</td>`;
+                    saleCells=`<td class="mono" style="font-weight:600;color:#064E3B">$${iSaleUSD.toFixed(2)}<br><span style="font-size:11px;color:var(--text-3);font-weight:400">≈ ${iSaleCUP.toFixed(2)} CUP</span></td><td style="color:var(--text-3)">—</td>`;
                 }
             } else { saleCells='<td style="color:var(--text-3)">—</td><td style="color:var(--text-3)">—</td>'; }
         }
@@ -3757,7 +3808,8 @@ async function saveMovement(event) {
             notes,
             date: sharedDate,
             undone: false,
-            registeredBy: currentUser || 'Admin'
+            registeredBy: currentUser || 'Admin',
+            exchangeRateUsed: type === 'Salida' ? getExchangeRate() : null
         });
 
         if (type === 'Entrada') {
@@ -3895,23 +3947,28 @@ async function loadDashboard() {
     const canViewCost = ROLES[currentRole].canViewCost;
     const totalProducts=products.reduce((s,p)=>s+p.quantity,0);
     document.getElementById('totalProducts').textContent=totalProducts;
-    // Vendedoras ven el valor al precio de venta; admin ve el valor al costo
-    const totalValue = canViewCost
+    // Vendedoras ven el valor al precio de venta; admin ve el valor al costo — ambos en USD
+    const totalValueUSD = canViewCost
         ? roundCUP(products.reduce((s,p)=>roundCUP(s+roundCUP(p.quantity*p.price)),0))
         : roundCUP(products.reduce((s,p)=>roundCUP(s+roundCUP(p.quantity*(p.salePrice||p.price))),0));
-    document.getElementById('totalValue').textContent=`${totalValue.toFixed(2)}`;
+    document.getElementById('totalValue').textContent=`${totalValueUSD.toFixed(2)}`;
+    const totalValueHintEl = document.getElementById('totalValueHint');
+    if (totalValueHintEl) totalValueHintEl.textContent = `≈ ${roundCUP(totalValueUSD*getExchangeRate()).toFixed(2)} CUP`;
     // Bloque tipo de cambio — solo admin
     const exchangeCard = document.querySelector('#dashboard .card-elevated');
     if (exchangeCard) exchangeCard.style.display = canViewCost ? '' : 'none';
-    if (canViewCost) { calculateDualCurrency(totalValue); updateExchangeRateDisplay(); }
+    if (canViewCost) { calculateDualCurrency(totalValueUSD); updateExchangeRateDisplay(); }
     const lowStock=products.filter(p=>p.quantity<=p.minStock).length;
     document.getElementById('lowStock').textContent=lowStock;
     const today=new Date().toDateString();
-    const todaySales=movements.filter(m=>m.type==='Salida'&&!m.undone&&new Date(m.date).toDateString()===today).reduce((sum,m)=>{
+    const todaySalesUSD=movements.filter(m=>m.type==='Salida'&&!m.undone&&new Date(m.date).toDateString()===today).reduce((sum,m)=>{
         const items=m.items||[{productId:m.productId,quantity:m.quantity,salePrice:m.salePrice}];
         return roundCUP(sum+items.reduce((s,item)=>roundCUP(s+roundCUP((item.salePrice||0)*item.quantity)),0));
     },0);
-    document.getElementById('salesToday').textContent=`${todaySales.toFixed(2)} CUP`;
+    const todaySalesCUP = roundCUP(todaySalesUSD * getExchangeRate());
+    document.getElementById('salesToday').textContent=`$${todaySalesUSD.toFixed(2)} USD`;
+    const salesTodayHintEl = document.getElementById('salesTodayHint');
+    if (salesTodayHintEl) salesTodayHintEl.textContent = `≈ ${todaySalesCUP.toFixed(2)} CUP`;
     // Stat card Valor Inventario: cambiar label según rol
     const valueLabel = document.querySelector('#dashboard .stat-card.green .stat-label');
     if (valueLabel) valueLabel.textContent = canViewCost ? 'Valor Inventario' : 'Valor en Venta';
@@ -3972,20 +4029,36 @@ async function saveExchangeRate(event) {
     // Fuente única: IndexedDB — actualizar store y caché en memoria
     await saveExchangeRateToStore('USD', newRate);
     stampLastModified(); updateExchangeRateDisplay(); loadDashboard();
-    // F4: recalcular índice de alertas con la nueva tasa
-    await buildPriceAlertsIndex();
     refreshFinancesBadgeFromIndex();
-    // Si la sección Inventario está visible, re-renderizar para mostrar/ocultar ⚠️
+    // Re-renderizar Inventario para reflejar el nuevo equivalente en CUP
     if (!document.getElementById('products').classList.contains('hidden')) {
         renderPage();
     }
     showToast('El tipo de cambio fue actualizado.','success','💱 Tasa actualizada');
     closeExchangeRateModal();
 }
-function calculateDualCurrency(totalValueCUP) {
+
+// ── Tasa de cambio editable por vendedores (cuadro en Inventario) ──
+async function saveVendorExchangeRate() {
+    const input = document.getElementById('vendorRateInput');
+    const newRate = parseFloat(input.value);
+    if (isNaN(newRate) || newRate <= 0) {
+        await appAlert('Ingresa una tasa válida mayor que 0.','warning','Valor inválido');
+        return;
+    }
+    await saveExchangeRateToStore('USD', newRate);
+    stampLastModified();
+    document.getElementById('vendorCurrentRate').textContent = newRate.toFixed(2);
+    input.value = '';
+    // Re-renderizar Inventario para reflejar el nuevo equivalente en CUP en cada fila
+    renderPage();
+    showToast('El tipo de cambio fue actualizado. Los precios en CUP se ajustaron.','success','💱 Tasa actualizada');
+}
+
+function calculateDualCurrency(totalValueUSD) {
     const rate=getExchangeRate();
-    document.getElementById('totalValueUSD').textContent=`$${roundCUP(totalValueCUP/rate).toFixed(2)}`;
-    document.getElementById('totalValueCUP').textContent=`${roundCUP(totalValueCUP).toFixed(2)} CUP`;
+    document.getElementById('totalValueUSD').textContent=`$${roundCUP(totalValueUSD).toFixed(2)}`;
+    document.getElementById('totalValueCUP').textContent=`${roundCUP(totalValueUSD*rate).toFixed(2)} CUP`;
 }
 
 // ── SUPERVISION ──
@@ -4182,37 +4255,41 @@ async function loadSalesReport() {
         if (paginationBar) paginationBar.style.display='none';
         document.getElementById('dailySalesTableBody').innerHTML='';
         document.getElementById('summaryTableBody').innerHTML='';
-        ['dailySalesTotal','dailySalesCount','dailySalesCUP','dailyTransactions','dailyProfit'].forEach(id=>{
-            document.getElementById(id).textContent = (id==='dailySalesCount'||id==='dailyTransactions') ? '0' : '0.00 CUP';
-        });
+        document.getElementById('dailySalesTotal').textContent   = '$0.00 USD';
+        document.getElementById('dailySalesCount').textContent   = '0';
+        document.getElementById('dailySalesCUP').textContent     = '≈ 0.00 CUP';
+        document.getElementById('dailyTransactions').textContent = '0';
+        document.getElementById('dailyProfit').textContent       = '$0.00 USD';
         reportRowsCache = []; reportSummaryCache = [];
         return;
     }
     noSalesEl.style.display='none';
 
-    let totalSales=0, totalProfit=0, totalQuantity=0;
+    let totalSalesUSD=0, totalProfitUSD=0, totalQuantity=0;
     reportRowsCache = [];
 
     // ── Construir filas de DETALLE ──
     for (const sale of sales) {
+        const histRate = sale.exchangeRateUsed || rate; // fidelidad histórica: tasa del momento de la venta
         const items = sale.items||[{productId:sale.productId,quantity:sale.quantity,salePrice:sale.salePrice,costPrice:sale.costPrice,location:sale.location}];
         for (const item of items) {
             const product         = products.find(p=>p.id===item.productId);
             const productName     = product ? `${product.brand} - ${product.color}` : (item.archivedName||'⚠️ Eliminado');
             const productCategory = product ? product.category : (item.archivedCategory||'—');
             const productLocation = item.location||(product ? product.location : (item.archivedLocation||'—'));
-            const costPrice       = roundCUP(item.costPrice||(product ? product.price : 0));
-            const salePrice       = roundCUP(item.salePrice||costPrice);
-            const saleTotalCUP    = roundCUP(salePrice*item.quantity);
-            const saleProfitCUP   = roundCUP((salePrice-costPrice)*item.quantity);
-            const saleProfitUSD   = roundCUP(saleProfitCUP/rate);
-            totalSales    = roundCUP(totalSales+saleTotalCUP);
-            totalProfit   = roundCUP(totalProfit+saleProfitCUP);
+            const costPrice        = roundCUP(item.costPrice||(product ? product.price : 0));      // USD
+            const salePrice         = roundCUP(item.salePrice||costPrice);                            // USD
+            const saleTotalUSD      = roundCUP(salePrice*item.quantity);
+            const saleProfitUSD     = roundCUP((salePrice-costPrice)*item.quantity);
+            const saleTotalCUP      = roundCUP(saleTotalUSD*histRate);
+            const saleProfitCUP     = roundCUP(saleProfitUSD*histRate);
+            totalSalesUSD  = roundCUP(totalSalesUSD+saleTotalUSD);
+            totalProfitUSD = roundCUP(totalProfitUSD+saleProfitUSD);
             totalQuantity += item.quantity;
             const timeStr = reportPeriod==='today'
                 ? new Date(sale.date).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})
                 : new Date(sale.date).toLocaleDateString('es-ES',{day:'2-digit',month:'short'})+' '+new Date(sale.date).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
-            reportRowsCache.push({timeStr, productName, productCategory, productLocation, costPrice, salePrice, saleTotalCUP, saleProfitCUP, saleProfitUSD, quantity: item.quantity});
+            reportRowsCache.push({timeStr, productName, productCategory, productLocation, costPrice, salePrice, saleTotalUSD, saleProfitUSD, saleTotalCUP, saleProfitCUP, histRate, quantity: item.quantity});
         }
     }
 
@@ -4220,6 +4297,7 @@ async function loadSalesReport() {
     // Clave: "YYYY-MM-DD|productName"
     const summaryMap = new Map();
     for (const sale of sales) {
+        const histRate = sale.exchangeRateUsed || rate;
         const items = sale.items||[{productId:sale.productId,quantity:sale.quantity,salePrice:sale.salePrice,costPrice:sale.costPrice,location:sale.location}];
         const dateKey = new Date(sale.date).toLocaleDateString('es-ES',{year:'numeric',month:'2-digit',day:'2-digit'}); // dd/mm/yyyy
         // Usamos timestamp normalizado a medianoche para ordenar
@@ -4232,12 +4310,16 @@ async function loadSalesReport() {
             const salePrice       = roundCUP(item.salePrice||costPrice);
             const mapKey = `${dayTs}|${productName}`;
             if (!summaryMap.has(mapKey)) {
-                summaryMap.set(mapKey, { dateKey, dayTs, productName, productCategory, costPriceSum:0, salePriceSum:0, totalCUP:0, profitCUP:0, quantity:0, rowCount:0 });
+                summaryMap.set(mapKey, { dateKey, dayTs, productName, productCategory, costPriceSum:0, salePriceSum:0, totalUSD:0, profitUSD:0, totalCUP:0, profitCUP:0, quantity:0, rowCount:0 });
             }
             const r = summaryMap.get(mapKey);
+            const itemTotalUSD  = roundCUP(salePrice*item.quantity);
+            const itemProfitUSD = roundCUP((salePrice-costPrice)*item.quantity);
             r.quantity    += item.quantity;
-            r.totalCUP     = roundCUP(r.totalCUP    + roundCUP(salePrice*item.quantity));
-            r.profitCUP    = roundCUP(r.profitCUP   + roundCUP((salePrice-costPrice)*item.quantity));
+            r.totalUSD     = roundCUP(r.totalUSD    + itemTotalUSD);
+            r.profitUSD    = roundCUP(r.profitUSD   + itemProfitUSD);
+            r.totalCUP     = roundCUP(r.totalCUP    + roundCUP(itemTotalUSD*histRate));
+            r.profitCUP    = roundCUP(r.profitCUP   + roundCUP(itemProfitUSD*histRate));
             r.costPriceSum = roundCUP(r.costPriceSum + costPrice);
             r.salePriceSum = roundCUP(r.salePriceSum + salePrice);
             r.rowCount++;
@@ -4253,16 +4335,17 @@ async function loadSalesReport() {
             quantity:      r.quantity,
             costPriceAvg:  roundCUP(r.costPriceSum / r.rowCount),
             salePriceAvg:  roundCUP(r.salePriceSum / r.rowCount),
+            totalUSD:      r.totalUSD,
+            profitUSD:     r.profitUSD,
             totalCUP:      r.totalCUP,
-            profitCUP:     r.profitCUP,
-            profitUSD:     roundCUP(r.profitCUP / rate)
+            profitCUP:     r.profitCUP
         }));
 
-    document.getElementById('dailySalesTotal').textContent   = `${totalSales.toFixed(2)} CUP`;
+    document.getElementById('dailySalesTotal').textContent   = `$${totalSalesUSD.toFixed(2)} USD`;
     document.getElementById('dailySalesCount').textContent   = totalQuantity;
-    document.getElementById('dailySalesCUP').textContent     = `${totalSales.toFixed(2)} CUP`;
+    document.getElementById('dailySalesCUP').textContent     = `≈ ${roundCUP(totalSalesUSD*rate).toFixed(2)} CUP`;
     document.getElementById('dailyTransactions').textContent = sales.length;
-    document.getElementById('dailyProfit').textContent       = `${totalProfit.toFixed(2)} CUP`;
+    document.getElementById('dailyProfit').textContent       = `$${totalProfitUSD.toFixed(2)} USD`;
 
     reportCurrentPage = 1;
     if (reportView === 'detail') renderSalesPage();
@@ -4281,19 +4364,19 @@ function renderSalesPage() {
     tbody.innerHTML = '';
 
     for (const row of page) {
-        const profitColor = row.saleProfitCUP<0 ? 'var(--rose)' : '#065F46';
+        const profitColor = row.saleProfitUSD<0 ? 'var(--rose)' : '#065F46';
         tbody.innerHTML += `
             <tr>
                 <td class="mono" style="font-size:13px">${row.timeStr}</td>
                 <td style="font-weight:600">${row.productName}</td>
                 <td><span class="badge badge-info">${row.productCategory}</span></td>
                 <td style="font-weight:700">${row.quantity}</td>
-                <td class="mono">${row.costPrice.toFixed(2)} CUP</td>
-                <td class="mono" style="font-weight:700">${row.salePrice.toFixed(2)} CUP</td>
-                <td class="mono">${(row.salePrice-row.costPrice).toFixed(2)} CUP</td>
-                <td class="mono" style="font-weight:700;color:#064E3B">${row.saleTotalCUP.toFixed(2)} CUP</td>
-                <td class="mono" style="font-weight:700;color:${profitColor}">${row.saleProfitCUP.toFixed(2)} CUP</td>
-                <td class="mono" style="font-weight:700;color:${profitColor}">${row.saleProfitUSD.toFixed(2)} USD</td>
+                <td class="mono">$${row.costPrice.toFixed(2)}</td>
+                <td class="mono" style="font-weight:700">$${row.salePrice.toFixed(2)}</td>
+                <td class="mono">$${(row.salePrice-row.costPrice).toFixed(2)}</td>
+                <td class="mono" style="font-weight:700;color:#064E3B">$${row.saleTotalUSD.toFixed(2)}</td>
+                <td class="mono" style="font-weight:700;color:${profitColor}">$${row.saleProfitUSD.toFixed(2)}</td>
+                <td class="mono" style="font-size:11.5px;color:var(--text-3)">${row.histRate.toFixed(2)} · ${row.saleTotalCUP.toFixed(2)} CUP</td>
                 <td style="color:var(--text-2)">${row.productLocation}</td>
             </tr>`;
     }
@@ -4325,7 +4408,7 @@ function renderSummaryPage() {
     // Agrupar filas de la página para aplicar rowspan en Fecha
     let lastDate = null;
     for (const row of page) {
-        const profitColor = row.profitCUP < 0 ? 'var(--rose)' : '#065F46';
+        const profitColor = row.profitUSD < 0 ? 'var(--rose)' : '#065F46';
         const isNewDate   = row.dateKey !== lastDate;
         lastDate = row.dateKey;
         tbody.innerHTML += `
@@ -4334,11 +4417,11 @@ function renderSummaryPage() {
                 <td style="font-weight:600">${row.productName}</td>
                 <td><span class="badge badge-info">${row.productCategory}</span></td>
                 <td style="font-weight:800;font-size:15px;color:var(--navy)">${row.quantity}</td>
-                <td class="mono" style="color:var(--text-2)">${row.costPriceAvg.toFixed(2)} CUP</td>
-                <td class="mono" style="font-weight:700">${row.salePriceAvg.toFixed(2)} CUP</td>
-                <td class="mono" style="font-weight:700;color:#064E3B">${row.totalCUP.toFixed(2)} CUP</td>
-                <td class="mono" style="font-weight:700;color:${profitColor}">${row.profitCUP.toFixed(2)} CUP</td>
-                <td class="mono" style="font-weight:700;color:${profitColor}">${row.profitUSD.toFixed(2)} USD</td>
+                <td class="mono" style="color:var(--text-2)">$${row.costPriceAvg.toFixed(2)}</td>
+                <td class="mono" style="font-weight:700">$${row.salePriceAvg.toFixed(2)}</td>
+                <td class="mono" style="font-weight:700;color:#064E3B">$${row.totalUSD.toFixed(2)}</td>
+                <td class="mono" style="font-weight:700;color:${profitColor}">$${row.profitUSD.toFixed(2)}</td>
+                <td class="mono" style="font-size:11.5px;color:var(--text-3)">${row.totalCUP.toFixed(2)} CUP</td>
             </tr>`;
     }
 
@@ -4424,14 +4507,14 @@ async function exportDailySalesExcel() {
             { key:'quantity', width:12 },
             { key:'costAvg',  width:18 },
             { key:'saleAvg',  width:18 },
-            { key:'totalCUP', width:18 },
-            { key:'profitCUP',width:16 },
-            { key:'profitUSD',width:14 }
+            { key:'totalUSD', width:18 },
+            { key:'profitUSD',width:16 },
+            { key:'totalCUP', width:18 }
         ];
         worksheet.getRow(5).values = [
             'Fecha','Producto','Categoría','Uds. Vendidas',
-            'P. Compra Prom. (CUP)','P. Venta Prom. (CUP)',
-            'Total Venta (CUP)','Ganancia (CUP)','Ganancia (USD)'
+            'P. Compra Prom. (USD)','P. Venta Prom. (USD)',
+            'Total Venta (USD)','Ganancia (USD)','Equiv. CUP (tasa histórica)'
         ];
         const headerRow = worksheet.getRow(5);
         headerRow.font = { bold:true, color:{ argb:'FFFFFFFF' } };
@@ -4442,6 +4525,7 @@ async function exportDailySalesExcel() {
         // Re-calcular el mapa resumen en la exportación
         const summaryMap = new Map();
         for (const sale of todaySales) {
+            const histRate = sale.exchangeRateUsed || rate;
             const items = sale.items||[{productId:sale.productId,quantity:sale.quantity,salePrice:sale.salePrice,costPrice:sale.costPrice,location:sale.location}];
             const dayTs = new Date(new Date(sale.date).getFullYear(), new Date(sale.date).getMonth(), new Date(sale.date).getDate()).getTime();
             const dateKey = new Date(sale.date).toLocaleDateString('es-ES',{year:'numeric',month:'2-digit',day:'2-digit'});
@@ -4452,25 +4536,29 @@ async function exportDailySalesExcel() {
                 const cp       = roundCUP(item.costPrice||(product ? product.price : 0));
                 const sp       = roundCUP(item.salePrice||cp);
                 const key      = `${dayTs}|${pName}`;
-                if (!summaryMap.has(key)) summaryMap.set(key,{dateKey,dayTs,pName,cat,qty:0,totalCUP:0,profitCUP:0,cpSum:0,spSum:0,rc:0});
+                if (!summaryMap.has(key)) summaryMap.set(key,{dateKey,dayTs,pName,cat,qty:0,totalUSD:0,profitUSD:0,totalCUP:0,cpSum:0,spSum:0,rc:0});
                 const r = summaryMap.get(key);
-                r.qty+=item.quantity; r.totalCUP=roundCUP(r.totalCUP+roundCUP(sp*item.quantity));
-                r.profitCUP=roundCUP(r.profitCUP+roundCUP((sp-cp)*item.quantity));
+                const itemTotalUSD  = roundCUP(sp*item.quantity);
+                const itemProfitUSD = roundCUP((sp-cp)*item.quantity);
+                r.qty+=item.quantity;
+                r.totalUSD=roundCUP(r.totalUSD+itemTotalUSD);
+                r.profitUSD=roundCUP(r.profitUSD+itemProfitUSD);
+                r.totalCUP=roundCUP(r.totalCUP+roundCUP(itemTotalUSD*histRate));
                 r.cpSum=roundCUP(r.cpSum+cp); r.spSum=roundCUP(r.spSum+sp); r.rc++;
             }
         }
-        let totalQty=0, totalCUP=0, totalProfit=0;
+        let totalQty=0, totalUSD=0, totalProfitUSD=0, totalCUPSum=0;
         const rows = Array.from(summaryMap.values()).sort((a,b)=>a.dayTs!==b.dayTs?a.dayTs-b.dayTs:a.pName.localeCompare(b.pName));
         for (const r of rows) {
-            totalQty+=r.qty; totalCUP=roundCUP(totalCUP+r.totalCUP); totalProfit=roundCUP(totalProfit+r.profitCUP);
+            totalQty+=r.qty; totalUSD=roundCUP(totalUSD+r.totalUSD); totalProfitUSD=roundCUP(totalProfitUSD+r.profitUSD); totalCUPSum=roundCUP(totalCUPSum+r.totalCUP);
             worksheet.addRow({ fecha:r.dateKey, product:r.pName, category:r.cat, quantity:r.qty,
                 costAvg:roundCUP(r.cpSum/r.rc), saleAvg:roundCUP(r.spSum/r.rc),
-                totalCUP:r.totalCUP, profitCUP:r.profitCUP, profitUSD:roundCUP(r.profitCUP/rate) });
+                totalUSD:r.totalUSD, profitUSD:r.profitUSD, totalCUP:r.totalCUP });
         }
-        ['costAvg','saleAvg','totalCUP','profitCUP','profitUSD'].forEach(col=>{ worksheet.getColumn(col).numFmt='#,##0.00'; });
+        ['costAvg','saleAvg','totalUSD','profitUSD','totalCUP'].forEach(col=>{ worksheet.getColumn(col).numFmt='#,##0.00'; });
         worksheet.getColumn('quantity').numFmt='#,##0';
         worksheet.addRow([]);
-        const totalRow = worksheet.addRow({ fecha:'', product:'', category:'TOTALES', quantity:totalQty, totalCUP, profitCUP:totalProfit, profitUSD:roundCUP(totalProfit/rate) });
+        const totalRow = worksheet.addRow({ fecha:'', product:'', category:'TOTALES', quantity:totalQty, totalUSD, profitUSD:totalProfitUSD, totalCUP:totalCUPSum });
         totalRow.font = { bold:true, size:12 };
         totalRow.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFFEF3C7' } };
         worksheet.autoFilter = 'A5:I5';
@@ -4481,13 +4569,13 @@ async function exportDailySalesExcel() {
         worksheet.columns = [
             { key:'fecha', width:14 }, { key:'time', width:10 }, { key:'product', width:30 },
             { key:'category', width:15 }, { key:'quantity', width:10 }, { key:'costPrice', width:18 },
-            { key:'salePrice', width:18 }, { key:'unitProfit', width:18 }, { key:'totalCUP', width:18 },
-            { key:'profitUSD', width:15 }, { key:'profitCUP', width:15 }, { key:'location', width:15 }
+            { key:'salePrice', width:18 }, { key:'unitProfit', width:18 }, { key:'totalUSD', width:18 },
+            { key:'profitUSD', width:15 }, { key:'rateUsed', width:14 }, { key:'totalCUP', width:18 }, { key:'location', width:15 }
         ];
         worksheet.getRow(5).values = [
             'Fecha','Hora','Producto','Categoría','Cantidad',
-            'P. Compra (CUP)','P. Venta (CUP)','Gan. Unit. (CUP)',
-            'Total Venta (CUP)','Gan. USD','Gan. CUP','Ubicación'
+            'P. Compra (USD)','P. Venta (USD)','Gan. Unit. (USD)',
+            'Total Venta (USD)','Gan. USD','Tasa Usada','Equiv. CUP','Ubicación'
         ];
         const headerRow = worksheet.getRow(5);
         headerRow.font = { bold:true, color:{ argb:'FFFFFFFF' } };
@@ -4495,8 +4583,9 @@ async function exportDailySalesExcel() {
         headerRow.alignment = { horizontal:'center', vertical:'middle' };
         headerRow.height = 25;
 
-        let totalSales=0, totalProfit=0, totalQuantity=0;
+        let totalSalesUSD=0, totalProfitUSDSum=0, totalQuantity=0, totalCUPSum=0;
         for (const sale of todaySales) {
+            const histRate = sale.exchangeRateUsed || rate;
             const items = sale.items || [{productId:sale.productId,quantity:sale.quantity,salePrice:sale.salePrice,costPrice:sale.costPrice,location:sale.location}];
             const fechaObj = new Date(sale.date);
             const time = fechaObj.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
@@ -4507,20 +4596,21 @@ async function exportDailySalesExcel() {
                     const cat = product.category; const loc = item.location || product.location || '-';
                     const cp = roundCUP(item.costPrice || product.price || 0);
                     const sp = roundCUP(item.salePrice || cp);
-                    const totalCUP = roundCUP(sp * item.quantity);
-                    const profitCUP = roundCUP((sp - cp) * item.quantity);
-                    totalSales = roundCUP(totalSales + totalCUP); totalProfit = roundCUP(totalProfit + profitCUP); totalQuantity += item.quantity;
-                    worksheet.addRow({ fecha:fechaObj, time, product:pName, category:cat, quantity:item.quantity, costPrice:cp, salePrice:sp, unitProfit:roundCUP(sp-cp), totalCUP, profitUSD:roundCUP(profitCUP/rate), profitCUP, location:loc });
+                    const totalUSD = roundCUP(sp * item.quantity);
+                    const profitUSD = roundCUP((sp - cp) * item.quantity);
+                    const totalCUP = roundCUP(totalUSD * histRate);
+                    totalSalesUSD = roundCUP(totalSalesUSD + totalUSD); totalProfitUSDSum = roundCUP(totalProfitUSDSum + profitUSD); totalQuantity += item.quantity; totalCUPSum = roundCUP(totalCUPSum + totalCUP);
+                    worksheet.addRow({ fecha:fechaObj, time, product:pName, category:cat, quantity:item.quantity, costPrice:cp, salePrice:sp, unitProfit:roundCUP(sp-cp), totalUSD, profitUSD, rateUsed:histRate, totalCUP, location:loc });
                 }
             }
         }
         worksheet.getColumn('fecha').numFmt = 'dd/mm/yyyy';
-        ['costPrice','salePrice','unitProfit','totalCUP','profitCUP','profitUSD'].forEach(col=>{ worksheet.getColumn(col).numFmt='#,##0.00'; });
+        ['costPrice','salePrice','unitProfit','totalUSD','profitUSD','rateUsed','totalCUP'].forEach(col=>{ worksheet.getColumn(col).numFmt='#,##0.00'; });
         worksheet.addRow([]);
-        const totalRow = worksheet.addRow({ fecha:'', time:'', product:'', category:'TOTALES', quantity:totalQuantity, totalCUP:totalSales, profitUSD:roundCUP(totalProfit/rate), profitCUP:totalProfit, location:'' });
+        const totalRow = worksheet.addRow({ fecha:'', time:'', product:'', category:'TOTALES', quantity:totalQuantity, totalUSD:totalSalesUSD, profitUSD:totalProfitUSDSum, totalCUP:totalCUPSum, location:'' });
         totalRow.font = { bold:true, size:12 };
         totalRow.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFFEF3C7' } };
-        worksheet.autoFilter = 'A5:L5';
+        worksheet.autoFilter = 'A5:M5';
         worksheet.views = [{ state:'frozen', ySplit:5 }];
     }
 
@@ -4535,10 +4625,12 @@ async function exportDailySalesExcel() {
 
 async function exportProductsExcel() {
     const products=await getAllRecords('products'); const workbook=new ExcelJS.Workbook(); const worksheet=workbook.addWorksheet('Inventario');
+    const rate=getExchangeRate();
     worksheet.columns=[
         {header:'Marca y Tipo',key:'brand',width:30},{header:'Color',key:'color',width:15},{header:'Categoría',key:'category',width:15},
-        {header:'Cantidad',key:'quantity',width:10},{header:'P. Compra (CUP)',key:'price',width:18},{header:'P. Venta (CUP)',key:'salePrice',width:18},
-        {header:'Margen Unit.',key:'margin',width:15},{header:'Valor Total (Compra)',key:'totalValue',width:20},{header:'Ubicación',key:'location',width:15},
+        {header:'Cantidad',key:'quantity',width:10},{header:'P. Compra (USD)',key:'price',width:18},{header:'P. Venta (USD)',key:'salePrice',width:18},
+        {header:'P. Venta (≈CUP)',key:'salePriceCUP',width:18},
+        {header:'Margen Unit. (USD)',key:'margin',width:18},{header:'Valor Total (USD)',key:'totalValue',width:20},{header:'Ubicación',key:'location',width:15},
         {header:'Stock Mínimo',key:'minStock',width:12},{header:'Estado Stock',key:'stockStatus',width:14},{header:'Fecha de Entrada',key:'dateAdded',width:20},{header:'Días en Almacén',key:'daysInStorage',width:15}
     ];
     const headerRow=worksheet.getRow(1);
@@ -4553,16 +4645,17 @@ async function exportProductsExcel() {
         const row=worksheet.addRow({
             brand:p.brand,color:p.color,category:p.category,quantity:p.quantity,
             price:roundCUP(p.price),salePrice:roundCUP(p.salePrice||p.price),
+            salePriceCUP:roundCUP((p.salePrice||p.price)*rate),
             margin:roundCUP((p.salePrice||p.price)-p.price),totalValue:roundCUP(p.quantity*p.price),
             location:p.location,minStock:p.minStock,stockStatus,dateAdded:new Date(p.dateAdded),daysInStorage:days
         });
         if (p.quantity===0) row.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4E6'}};
         else if (p.quantity<=p.minStock) row.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF3CD'}};
     });
-    ['price','salePrice','margin','totalValue'].forEach(col=>{worksheet.getColumn(col).numFmt='#,##0.00';});
+    ['price','salePrice','salePriceCUP','margin','totalValue'].forEach(col=>{worksheet.getColumn(col).numFmt='#,##0.00';});
     ['quantity','minStock','daysInStorage'].forEach(col=>{worksheet.getColumn(col).numFmt='#,##0';});
     worksheet.getColumn('dateAdded').numFmt='dd/mm/yyyy';
-    worksheet.autoFilter={from:{row:1,column:1},to:{row:1,column:13}};
+    worksheet.autoFilter={from:{row:1,column:1},to:{row:1,column:14}};
     worksheet.views=[{state:'frozen',ySplit:1}];
     const buffer=await workbook.xlsx.writeBuffer(); const blob=new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}); const url=window.URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`Inventario_${new Date().toISOString().split('T')[0]}.xlsx`; a.click();
     showToast('Inventario exportado con filtros activados.','success','📥 Inventario exportado');
@@ -4573,11 +4666,12 @@ async function exportMovementsExcel() {
     const products  = await getAllRecords('products');
     const workbook  = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Movimientos');
+    const rateNow   = getExchangeRate();
     worksheet.columns = [
         {header:'Fecha',key:'date',width:20},{header:'Tipo',key:'type',width:14},{header:'Producto',key:'product',width:32},
         {header:'Color',key:'color',width:16},{header:'Categoría',key:'category',width:16},{header:'Cantidad',key:'quantity',width:10},
-        {header:'Ubicación',key:'location',width:16},{header:'P. Costo (CUP)',key:'costPrice',width:16},{header:'P. Venta (CUP)',key:'salePrice',width:16},
-        {header:'Total (CUP)',key:'total',width:16},{header:'Registrado por',key:'registeredBy',width:18},{header:'Notas',key:'notes',width:36}
+        {header:'Ubicación',key:'location',width:16},{header:'P. Costo (USD)',key:'costPrice',width:16},{header:'P. Venta (USD)',key:'salePrice',width:16},
+        {header:'Total (USD)',key:'total',width:16},{header:'Equiv. CUP',key:'totalCUP',width:16},{header:'Registrado por',key:'registeredBy',width:18},{header:'Notas',key:'notes',width:36}
     ];
     const headerRow = worksheet.getRow(1);
     headerRow.font  = {bold:true,color:{argb:'FFFFFFFF'}};
@@ -4587,6 +4681,7 @@ async function exportMovementsExcel() {
     const active = movements.filter(m => !m.undone);
     active.sort((a,b) => b.date - a.date);
     for (const m of active) {
+        const histRate = m.exchangeRateUsed || rateNow;
         const items = m.items || [{productId:m.productId,quantity:m.quantity,location:m.location,costPrice:m.costPrice,salePrice:m.salePrice}];
         const dateStr = new Date(m.date).toLocaleString('es-ES');
         for (const item of items) {
@@ -4597,18 +4692,19 @@ async function exportMovementsExcel() {
             const cp       = roundCUP(item.costPrice || (product ? product.price : 0));
             const sp       = roundCUP(item.salePrice || cp);
             const total    = m.type === 'Salida' ? roundCUP(sp * item.quantity) : roundCUP(cp * item.quantity);
+            const totalCUP = roundCUP(total * histRate);
             const row = worksheet.addRow({
                 date:dateStr,type:m.type,product:brand,color,category,quantity:item.quantity,
                 location:item.location||m.sourceLocation||'—',costPrice:cp,
-                salePrice:m.type==='Salida'?sp:'—',total,registeredBy:m.registeredBy||'—',notes:m.notes||'—'
+                salePrice:m.type==='Salida'?sp:'—',total,totalCUP,registeredBy:m.registeredBy||'—',notes:m.notes||'—'
             });
             const bg = typeColors[m.type];
             if (bg) row.fill = {type:'pattern',pattern:'solid',fgColor:{argb:bg}};
         }
     }
-    ['costPrice','salePrice','total'].forEach(col => { worksheet.getColumn(col).numFmt = '#,##0.00'; });
+    ['costPrice','salePrice','total','totalCUP'].forEach(col => { worksheet.getColumn(col).numFmt = '#,##0.00'; });
     worksheet.getColumn('quantity').numFmt = '#,##0';
-    worksheet.autoFilter = {from:{row:1,column:1},to:{row:1,column:12}};
+    worksheet.autoFilter = {from:{row:1,column:1},to:{row:1,column:13}};
     worksheet.views = [{state:'frozen',ySplit:1}];
     const buffer = await workbook.xlsx.writeBuffer();
     const blob   = new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
@@ -4621,63 +4717,8 @@ async function exportMovementsExcel() {
 // ══ UTILITIES ══
 function roundCUP(value) { return Math.round((value+Number.EPSILON)*100)/100; }
 
-// ── F4: Índice de alertas de precio para la tabla de productos ──
-let priceAlertsIndex = {}; // { productId: { diferencia, salePriceNecesario, marginPct } }
-let plExportStore    = {}; // LB-3: datos del P&L indexados por clave — evita serializar movimientos en onclick
-
-async function buildPriceAlertsIndex() {
-    const allProds   = await getAllRecords('products');
-    const costHist   = await getAllRecords('costHistory');
-    const currentUSD = getExchangeRate();
-    priceAlertsIndex = {};
-
-    // Leer tasa previa — base para productos sin costHistory confiable
-    let previousUSD = currentUSD;
-    try {
-        const storedUSD = await getRecordById('exchangeRates', 'USD');
-        if (storedUSD && storedUSD.previousRate) previousUSD = storedUSD.previousRate;
-    } catch(e) {}
-
-    // Índice: último registro de costHistory con tasa conocida, por producto
-    const byProduct = {};
-    costHist.forEach(h => {
-        if (h.exchangeRate == null || h.exchangeRate <= 0) return;
-        if (!byProduct[h.productId] || h.date > byProduct[h.productId].date) byProduct[h.productId] = h;
-    });
-
-    allProds.forEach(prod => {
-        if (!prod.price || prod.price <= 0) return;
-        if (prod.costPending) return;
-
-        const last = byProduct[prod.id];
-        let tasaOriginal, costPriceBase, marginPct;
-
-        if (last) {
-            // ── Caso A: costHistory confiable con tasa real ──
-            tasaOriginal  = last.exchangeRate;
-            costPriceBase = last.costPrice;
-            marginPct     = (last.marginPct != null && last.marginPct > 0)
-                ? last.marginPct
-                : (prod.marginPct != null && prod.marginPct > 0 ? prod.marginPct : 0);
-        } else {
-            // ── Caso B: sin costHistory — usar tasa previa como base ──
-            // Si no hubo cambio previo aún (previousUSD === currentUSD), no hay alerta todavía.
-            tasaOriginal  = previousUSD;
-            costPriceBase = prod.price;
-            marginPct     = prod.marginPct != null && prod.marginPct > 0 ? prod.marginPct : 0;
-        }
-
-        if (!tasaOriginal || currentUSD <= tasaOriginal) return;
-
-        const costImplicito      = roundCUP(costPriceBase * (currentUSD / tasaOriginal));
-        const salePriceNecesario = marginPct > 0
-            ? roundCUP(costImplicito * (1 + marginPct / 100))
-            : costImplicito; // sin margen: alertar si costo supera precio venta
-        const diferencia = roundCUP(salePriceNecesario - (prod.salePrice || prod.price));
-
-        if (diferencia >= 1) priceAlertsIndex[prod.id] = { diferencia, salePriceNecesario, marginPct };
-    });
-}
+// ── LB-3: datos del P&L indexados por clave — evita serializar movimientos en onclick ──
+let plExportStore    = {};
 
 // ── F1: Indicador de margen en tiempo real ──
 function updateMarginHint() {
@@ -4685,6 +4726,13 @@ function updateMarginHint() {
     const sale = parseFloat(document.getElementById('productSalePrice').value);
     const hintOk   = document.getElementById('marginHint');
     const hintLoss = document.getElementById('marginHintLoss');
+    // Equivalente en CUP del precio de venta (USD × tasa del día)
+    const cupHintEl = document.getElementById('productSalePriceCUPValue');
+    if (cupHintEl) {
+        cupHintEl.textContent = (!isNaN(sale) && sale > 0)
+            ? roundCUP(sale * getExchangeRate()).toFixed(2)
+            : '—';
+    }
     if (!hintOk || !hintLoss) return;
     if (isNaN(cost) || isNaN(sale) || cost <= 0 || sale <= 0) {
         hintOk.style.display   = 'none';
@@ -4697,12 +4745,12 @@ function updateMarginHint() {
         hintOk.style.display   = 'block';
         hintLoss.style.display = 'none';
         document.getElementById('marginHintValue').textContent =
-            `${margin.toFixed(2)} CUP (${marginPct.toFixed(1)}%)`;
+            `${margin.toFixed(2)} USD (${marginPct.toFixed(1)}%)`;
     } else {
         hintOk.style.display   = 'none';
         hintLoss.style.display = 'block';
         document.getElementById('marginHintLossValue').textContent =
-            `${Math.abs(margin).toFixed(2)} CUP (${Math.abs(marginPct).toFixed(1)}%) por debajo del costo`;
+            `${Math.abs(margin).toFixed(2)} USD (${Math.abs(marginPct).toFixed(1)}%) por debajo del costo`;
     }
 }
 function debounce(fn, delay) {
@@ -4980,8 +5028,10 @@ async function loadNoticeboard() {
     }
     if (isAdmin) {
         document.getElementById('notesActiveCount').textContent=allNotes.length;
-        const unreadTienda=allNotes.filter(n=>(n.targetUser==='all'||n.targetUser==='VendedorTienda')&&!n.readBy.includes('VendedorTienda')).length;
-        document.getElementById('notesUnreadTienda').textContent=unreadTienda;
+        const unreadV1=allNotes.filter(n=>(n.targetUser==='all'||n.targetUser==='Vendedor1')&&!n.readBy.includes('Vendedor1')).length;
+        const unreadV2=allNotes.filter(n=>(n.targetUser==='all'||n.targetUser==='Vendedor2')&&!n.readBy.includes('Vendedor2')).length;
+        document.getElementById('notesUnreadV1').textContent=unreadV1;
+        document.getElementById('notesUnreadV2').textContent=unreadV2;
     }
     const container=document.getElementById('notesListContainer');
     const noMsg=document.getElementById('noNotesMsg');
@@ -5079,11 +5129,9 @@ async function loadAllData() {
     } catch(e) { /* store aún no existe en upgrade v3→v4 — ignorar, se usará el default */ }
     await migrateMultiItemMovements();
     if (!currentRole||currentRole==='admin') await loadDashboard();
-    // Reconstruir índice de productos al cargar; las alertas de precio fueron retiradas.
     const prods = await getAllRecords('products');
     allProductsCache = prods;
     buildProductsIndex();
-    refreshFinancesBadgeFromIndex();
 }
 function updateCurrentDate() { document.getElementById('currentDate').textContent=new Date().toLocaleDateString('es-ES',{weekday:'short',day:'numeric',month:'short',year:'numeric'}); }
 function updateLastModified() {
@@ -5163,12 +5211,9 @@ function refreshFinancesBadge() {
 }
 
 function refreshFinancesBadgeFromIndex() {
-    const count = Object.keys(priceAlertsIndex).length;
+    // Badge de alertas de precio eliminado junto con el módulo de devaluación CUP — siempre oculto
     const badge = document.getElementById('financesBadge');
-    if (badge) {
-        badge.textContent = count;
-        badge.classList.toggle('hidden', count === 0);
-    }
+    if (badge) badge.classList.add('hidden');
 }
 
 // ── showSection: agregar finances ──
@@ -5210,7 +5255,6 @@ function switchFinTab(tab) {
     });
     if (tab === 'gastos')  { loadExpenses(); loadCategories(); }
     if (tab === 'estado')  loadPL();
-    if (tab === 'alertas') loadPriceAlerts();
 }
 
 function switchFinSubTab(subtab) {
@@ -5915,91 +5959,6 @@ async function exportPLLine(storeKey) {
     showToast(`Detalle de "${label}" exportado.`,'success','📥 Excel generado');
 }
 
-// ══ ALERTAS DE PRECIO ══
-
-async function loadPriceAlerts() {
-    const container = document.getElementById('alertasContainer');
-    if (!container) return;
-    container.innerHTML = '<p style="color:var(--text-3);font-size:13px">Calculando alertas…</p>';
-
-    // Reconstruir índice siempre al abrir la sección — garantiza datos frescos
-    await buildPriceAlertsIndex();
-    refreshFinancesBadgeFromIndex();
-
-    const currentUSD = getExchangeRate();
-    const alertEntries = Object.entries(priceAlertsIndex); // [productId, {diferencia, salePriceNecesario, marginPct}]
-
-    if (alertEntries.length === 0) {
-        container.innerHTML = `
-            <div style="text-align:center;padding:40px;color:var(--text-3)">
-                <p style="font-size:32px;margin-bottom:8px">✅</p>
-                <p style="font-size:15px;font-weight:600">Sin alertas de precio</p>
-                <p style="font-size:13px;margin-top:4px">Los márgenes están dentro del rango esperado con la tasa actual (${currentUSD.toFixed(2)} CUP/USD)</p>
-            </div>`;
-        return;
-    }
-
-    // Cargar productos para mostrar nombres
-    const allProds  = await getAllRecords('products');
-    const prodsById = {};
-    allProds.forEach(p => { prodsById[p.id] = p; });
-
-    // Leer tasa previa para mostrar referencia
-    let previousUSD = null;
-    try {
-        const storedUSD = await getRecordById('exchangeRates', 'USD');
-        if (storedUSD && storedUSD.previousRate) previousUSD = storedUSD.previousRate;
-    } catch(e) {}
-
-    // Construir lista ordenada por diferencia descendente
-    const alerts = alertEntries
-        .map(([pid, data]) => ({ product: prodsById[parseInt(pid)], ...data }))
-        .filter(a => a.product) // descartar si el producto fue eliminado
-        .sort((a, b) => b.diferencia - a.diferencia);
-
-    let html = `
-        <div style="margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-            <p style="font-size:13px;color:var(--text-2)">
-                Tasa actual: <strong class="mono">${currentUSD.toFixed(2)} CUP/USD</strong>
-                ${previousUSD ? `· Tasa anterior: <strong class="mono">${previousUSD.toFixed(2)}</strong>` : ''}
-                · <strong>${alerts.length}</strong> producto${alerts.length!==1?'s':''} afectado${alerts.length!==1?'s':''}
-            </p>
-        </div>
-        <div class="table-container">
-        <table>
-        <thead><tr>
-            <th>Producto</th><th>Margen</th><th>P. Venta actual</th>
-            <th>P. Sugerido</th><th>Diferencia</th><th>Tasa ref.</th>
-        </tr></thead>
-        <tbody>`;
-
-    for (const a of alerts) {
-        const p           = a.product;
-        const saledActual = roundCUP(p.salePrice || p.price);
-        const marginLabel = a.marginPct > 0 ? `${a.marginPct.toFixed(1)}%` : '—';
-        html += `
-            <tr>
-                <td>
-                    <span style="font-weight:600">${escHtml(p.brand)}</span>
-                    <span style="color:var(--text-2)"> — ${escHtml(p.color)}</span>
-                    <span style="font-size:11.5px;color:var(--text-3);display:block">${escHtml(p.category)} · ${escHtml(p.location)}</span>
-                </td>
-                <td class="mono">${marginLabel}</td>
-                <td class="mono" style="font-weight:600">${saledActual.toFixed(2)} CUP</td>
-                <td class="mono" style="font-weight:700;color:#064E3B">${a.salePriceNecesario.toFixed(2)} CUP</td>
-                <td>
-                    <span style="font-weight:700;color:var(--rose);font-family:'DM Mono',monospace">+${a.diferencia.toFixed(2)} CUP</span>
-                    ${a.marginPct > 0 ? `<span style="font-size:11.5px;color:var(--text-3);display:block">para mantener ${a.marginPct.toFixed(1)}%</span>` : ''}
-                </td>
-                <td style="font-size:11.5px;color:var(--text-3)">
-                    ${previousUSD ? `<strong>${previousUSD.toFixed(0)}</strong> → ${currentUSD.toFixed(0)}` : currentUSD.toFixed(0)}
-                </td>
-            </tr>`;
-    }
-    html += '</tbody></table></div>';
-    container.innerHTML = html;
-}
-
 // ========== INICIO: JS RESPONSIVE MÓVIL ==========
 
 // ── Sidebar móvil (slide-in/out) ──
@@ -6024,26 +5983,69 @@ function closeMobileSidebar() {
 
 // ========== FIN: JS RESPONSIVE MÓVIL ==========
 
+// ========== INICIO: PWA (Service Worker + Instalación + Estado de conexión) ==========
+
+// ── Registro del Service Worker ──
+// Nota: requiere servirse vía HTTP(S) — no funciona abriendo el archivo con file://
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js')
+            .then((reg) => console.log('[PWA] Service Worker registrado:', reg.scope))
+            .catch((err) => console.warn('[PWA] No se pudo registrar el Service Worker:', err));
+    });
+}
+
+// ── Captura del prompt de instalación nativo del navegador ──
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    const btn = document.getElementById('btnInstallPWA');
+    if (btn) btn.style.display = 'flex';
+});
+
+async function installPWA() {
+    if (!deferredInstallPrompt) {
+        await appAlert('La app ya está instalada o tu navegador no permite instalarla desde aquí.','info','Instalación no disponible');
+        return;
+    }
+    deferredInstallPrompt.prompt();
+    const choice = await deferredInstallPrompt.userChoice;
+    if (choice.outcome === 'accepted') {
+        showToast('La app se está instalando.','success','📲 Instalando');
+    }
+    deferredInstallPrompt = null;
+    document.getElementById('btnInstallPWA').style.display = 'none';
+}
+
+// Si la app ya quedó instalada (evento separado de beforeinstallprompt), ocultar botón
+window.addEventListener('appinstalled', () => {
+    const btn = document.getElementById('btnInstallPWA');
+    if (btn) btn.style.display = 'none';
+    deferredInstallPrompt = null;
+});
+
+// ── Indicador de estado de conexión (online/offline) ──
+// No afecta el funcionamiento de la app: IndexedDB sigue disponible sin conexión.
+function updateConnectionStatus() {
+    const dot   = document.getElementById('connectionDot');
+    const label = document.getElementById('connectionLabel');
+    if (!dot || !label) return;
+    if (navigator.onLine) {
+        dot.style.background = '#22C55E';
+        label.textContent = 'En línea';
+    } else {
+        dot.style.background = '#94A3B8';
+        label.textContent = 'Sin conexión (modo local)';
+    }
+}
+window.addEventListener('online', updateConnectionStatus);
+window.addEventListener('offline', updateConnectionStatus);
+document.addEventListener('DOMContentLoaded', updateConnectionStatus);
+
+// ========== FIN: PWA ==========
+
 </script>
-
-<script>
-    (() => {
-        const canRegisterServiceWorker =
-            'serviceWorker' in navigator &&
-            ['http:', 'https:'].includes(window.location.protocol);
-
-        if (!canRegisterServiceWorker) return;
-
-        window.addEventListener('load', async () => {
-            try {
-                const registration = await navigator.serviceWorker.register('./service-worker.js', { scope: './' });
-                registration.update();
-            } catch (error) {
-                console.warn('No se pudo registrar el Service Worker:', error);
-            }
-        });
-    })();
-</script>
-
 </body>
 </html>
