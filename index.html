@@ -1399,6 +1399,11 @@
                 </div>
             </div>
 
+            <!-- ── PWA: botón de instalación (oculto hasta que el navegador lo permita) ── -->
+            <button onclick="installPWA()" id="btnInstallPWA" class="sidebar-action-btn backup" style="display:none;margin-bottom:4px">
+                <span>📲</span><span class="sidebar-label">Instalar app</span>
+            </button>
+
             <div id="backupArea" style="margin-bottom:4px">
                 <button onclick="exportBackupJSON()" class="sidebar-action-btn backup">
                     <span>💾</span><span class="sidebar-label">Exportar Backup</span>
@@ -1408,11 +1413,6 @@
                     <input type="file" accept=".json" class="hidden" onchange="importBackupJSON(event)">
                 </label>
             </div>
-
-            <!-- ── PWA: botón de instalación (oculto hasta que el navegador lo permita) ── -->
-            <button onclick="installPWA()" id="btnInstallPWA" class="sidebar-action-btn backup" style="display:none;margin-bottom:4px">
-                <span>📲</span><span class="sidebar-label">Instalar app</span>
-            </button>
 
             <button onclick="logout()" id="btnLogout" class="sidebar-action-btn logout">
                 <span>🚪</span><span class="sidebar-label">Cerrar Sesión</span>
@@ -5902,7 +5902,7 @@ async function exportPLLine(storeKey) {
             {key:'total',width:16},{key:'registradoPor',width:18}
         ];
         const hRow = worksheet.getRow(4);
-        hRow.values = ['Fecha','Producto','Categoría','Ubicación','Cantidad','P. Costo (CUP)','P. Venta (CUP)','Total (CUP)','Registrado por'];
+        hRow.values = ['Fecha','Producto','Categoría','Ubicación','Cantidad','P. Costo (USD)','P. Venta (USD)','Total (USD)','Registrado por'];
         hRow.font   = { bold:true, color:{argb:'FFFFFFFF'} };
         hRow.fill   = { type:'pattern', pattern:'solid', fgColor:{argb:'FF0EA5E9'} };
         hRow.height = 22;
