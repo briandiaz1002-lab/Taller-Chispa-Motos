@@ -3026,7 +3026,9 @@ async function saveProduct(event) {
     let originalDateAdded = Date.now();
     if (productId) {
         const originalProduct = await getRecordById('products', parseInt(productId));
-        originalDateAdded = originalProduct?.dateAdded || Date.now();
+       originalDateAdded = (originalProduct && originalProduct.dateAdded)
+        ? originalProduct.dateAdded
+        : Date.now();
         // Al editar, preservar costPending si existía y el admin no completó el costo
         if (originalProduct?.costPending && role.canViewCost && price > 0) {
             costPending = false; // admin completó el costo — quitar bandera
