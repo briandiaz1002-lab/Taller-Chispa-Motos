@@ -1968,8 +1968,8 @@
                         <p id="productQtyHint" class="hidden" style="font-size:11.5px;color:var(--amber);margin-top:5px">🔒 Bloqueado en edición. Usa un movimiento para cambiar el stock.</p>
                     </div>
                     <div id="productPriceRow">
-                        <label class="form-label">Precio de Compra (USD) *</label>
-                        <input type="number" id="productPrice" min="0" step="0.01" class="form-input">
+                        <label class="form-label">Precio de Compra (USD) <span style="color:var(--text-3);font-weight:400">(opcional)</span></label>
+                        <input type="number" id="productPrice" min="0" step="0.01" class="form-input" placeholder="Dejar vacío si aún no se conoce">
                     </div>
                     <div>
                         <label class="form-label">Precio de Venta (USD) *</label>
@@ -1983,6 +1983,9 @@
                         </div>
                         <div id="marginHintLoss" style="display:none;background:#FFF1F2;border:1.5px solid #FFD6DB;border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;color:#9F1239;font-weight:600">
                             📉 Venta a pérdida: <span id="marginHintLossValue" class="mono">—</span>
+                        </div>
+                        <div id="marginHintPending" style="display:none;background:#FFFBEB;border:1.5px solid #FCD34D;border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;color:#92400E;font-weight:600">
+                            💲 Costo pendiente — solo se registrarán ingresos hasta completar el precio de compra.
                         </div>
                     </div>
                     <div>
@@ -2917,14 +2920,16 @@ function openProductModal(productId=null) {
     // F1: limpiar hint de margen al abrir
     const hintOk   = document.getElementById('marginHint');
     const hintLoss = document.getElementById('marginHintLoss');
+    const hintPend = document.getElementById('marginHintPending');
     if (hintOk)   hintOk.style.display   = 'none';
     if (hintLoss) hintLoss.style.display = 'none';
+    if (hintPend) hintPend.style.display = 'none';
 
-    // Precio de compra — solo visible para admin
+    // Precio de compra — solo visible para admin; nunca required (la validación de negocio vive en saveProduct)
     const priceRow = document.getElementById('productPriceRow');
     const priceInput = document.getElementById('productPrice');
     if (priceRow) priceRow.style.display = role.canViewCost ? '' : 'none';
-    if (priceInput) priceInput.required = role.canViewCost;
+    if (priceInput) priceInput.required = false;
 
     // vendor_tienda: Entrada crea solo productos en Tienda, bloquear ubicación
     const locSelect = document.getElementById('productLocation');
@@ -3000,12 +3005,28 @@ async function saveProduct(event) {
     const minStock=parseInt(document.getElementById('productMinStock').value)||0;
     const role = ROLES[currentRole];
 
-    // Precio de compra — solo admin lo ingresa
+    // Precio de compra — solo admin lo ingresa, y puede dejarlo vacío (costPending)
     let price = 0;
     let costPending = false;
     if (role.canViewCost) {
-        price = parseFloat(document.getElementById('productPrice').value);
-        if (!price||price<=0) { await appAlert('El precio de compra no puede ser cero o negativo.','warning','⚠️ Precio inválido'); return; }
+        const priceRaw = document.getElementById('productPrice').value;
+        if (priceRaw === '' || priceRaw === null) {
+            // admin no ingresó precio → costPending
+            if (!await appConfirm('El producto quedará sin precio de compra. Solo se calcularán ingresos, no ganancias, hasta que se complete el costo. ¿Continuar?','warning','💲 Costo pendiente','Sí, continuar','Cancelar')) return;
+            price = 0;
+            costPending = true;
+        } else {
+            const parsed = parseFloat(priceRaw);
+            if (isNaN(parsed) || parsed < 0) { await appAlert('El precio de compra no es válido.','warning','⚠️ Precio inválido'); return; }
+            if (parsed === 0) {
+                if (!await appConfirm('El producto quedará sin precio de compra. Solo se calcularán ingresos, no ganancias, hasta que se complete el costo. ¿Continuar?','warning','💲 Costo pendiente','Sí, continuar','Cancelar')) return;
+                price = 0;
+                costPending = true;
+            } else {
+                price = parsed;
+                costPending = false;
+            }
+        }
     } else {
         // vendor_tienda: precio costo desconocido — se marca pendiente
         price = 0;
@@ -3014,7 +3035,7 @@ async function saveProduct(event) {
 
     const salePrice = salePriceRaw;
     if (!salePrice||salePrice<=0) { await appAlert('El precio de venta no puede ser cero o negativo.','warning','⚠️ Precio inválido'); return; }
-    if (role.canViewCost && salePrice<price) { if (!await appConfirm(`Precio de venta (${salePrice.toFixed(2)}) menor que compra (${price.toFixed(2)}). ¿Es intencional?`,'warning','⚠️ Venta a pérdida','Sí, es intencional','Cancelar')) return; }
+    if (role.canViewCost && price > 0 && salePrice<price) { if (!await appConfirm(`Precio de venta (${salePrice.toFixed(2)}) menor que compra (${price.toFixed(2)}). ¿Es intencional?`,'warning','⚠️ Venta a pérdida','Sí, es intencional','Cancelar')) return; }
     if (quantity===0) { if (!await appConfirm('El producto se registrará sin stock. ¿Continuar?','warning','⚠️ Cantidad cero','Continuar','Cancelar')) return; }
     if (minStock>quantity&&quantity>0) { if (!await appConfirm(`Stock mínimo (${minStock}) mayor que cantidad inicial (${quantity}). Aparecerá como "Bajo Stock".`,'warning','⚠️ Stock mínimo alto','Entendido, continuar','Cancelar')) return; }
     const existingProducts = await getAllRecords('products');
@@ -3037,6 +3058,10 @@ async function saveProduct(event) {
             price = originalProduct.price || 0;
         } else if (originalProduct?.costPending && role.canViewCost && (!price || price <= 0)) {
             costPending = true; // admin no ingresó costo aún
+        } else if (originalProduct && !originalProduct.costPending && role.canViewCost && (!price || price <= 0)) {
+            // admin tenía costo y lo eliminó/zeró al editar → ahora pendiente
+            costPending = true;
+            price = 0;
         } else {
             costPending = originalProduct?.costPending || false;
         }
@@ -3382,6 +3407,7 @@ async function openQuickSaleModal(productId) {
     const salePrice = product.salePrice||product.price;
     const profit = salePrice-product.price;
     const canViewCost = ROLES[currentRole].canViewCost;
+    const isPending = product.costPending || !product.price;
     document.getElementById('quickSaleProductId').value = productId;
     document.getElementById('quickSaleProductName').textContent = `${product.brand} — ${product.color} · ${product.category}`;
     document.getElementById('quickSaleStock').textContent = product.quantity;
@@ -3390,11 +3416,27 @@ async function openQuickSaleModal(productId) {
     document.getElementById('quickSaleQuantity').max = product.quantity;
     document.getElementById('quickSaleNotes').value = '';
     const rate = getExchangeRate();
-    document.getElementById('qpCost').textContent = `$${product.price.toFixed(2)} USD (≈ ${roundCUP(product.price*rate).toFixed(2)} CUP)`;
+    const costEl = document.getElementById('qpCost');
+    if (isPending) {
+        costEl.textContent = '💲 Costo pendiente';
+        costEl.style.color = 'var(--amber)';
+        costEl.style.fontStyle = 'italic';
+    } else {
+        costEl.textContent = `$${product.price.toFixed(2)} USD (≈ ${roundCUP(product.price*rate).toFixed(2)} CUP)`;
+        costEl.style.color = '';
+        costEl.style.fontStyle = 'normal';
+    }
     document.getElementById('qpSale').textContent = `$${salePrice.toFixed(2)} USD (≈ ${roundCUP(salePrice*rate).toFixed(2)} CUP)`;
     const profitEl = document.getElementById('qpProfit');
-    profitEl.textContent = `$${profit.toFixed(2)} USD`;
-    profitEl.style.color = profit<0?'var(--rose)':'var(--emerald)';
+    if (isPending) {
+        profitEl.textContent = '💲 Costo pendiente — solo se registra ingreso';
+        profitEl.style.color = 'var(--amber)';
+        profitEl.style.fontStyle = 'italic';
+    } else {
+        profitEl.textContent = `$${profit.toFixed(2)} USD`;
+        profitEl.style.color = profit<0?'var(--rose)':'var(--emerald)';
+        profitEl.style.fontStyle = 'normal';
+    }
     // Ocultar precio compra y ganancia para vendedoras
     const costRow   = document.getElementById('qsCostRow');
     const profitRow = document.getElementById('qsProfitRow');
@@ -4760,6 +4802,7 @@ function updateMarginHint() {
     const sale = parseFloat(document.getElementById('productSalePrice').value);
     const hintOk   = document.getElementById('marginHint');
     const hintLoss = document.getElementById('marginHintLoss');
+    const hintPend = document.getElementById('marginHintPending');
     // Equivalente en CUP del precio de venta (USD × tasa del día)
     const cupHintEl = document.getElementById('productSalePriceCUPValue');
     if (cupHintEl) {
@@ -4768,11 +4811,21 @@ function updateMarginHint() {
             : '—';
     }
     if (!hintOk || !hintLoss) return;
-    if (isNaN(cost) || isNaN(sale) || cost <= 0 || sale <= 0) {
+    if (isNaN(sale) || sale <= 0) {
+        // Sin precio de venta: no mostrar nada (ni pendiente, ni pérdida, ni ganancia)
         hintOk.style.display   = 'none';
         hintLoss.style.display = 'none';
+        if (hintPend) hintPend.style.display = 'none';
         return;
     }
+    if (isNaN(cost) || cost <= 0) {
+        // Hay precio de venta pero no hay costo → estado "Costo pendiente"
+        hintOk.style.display   = 'none';
+        hintLoss.style.display = 'none';
+        if (hintPend) hintPend.style.display = 'block';
+        return;
+    }
+    if (hintPend) hintPend.style.display = 'none';
     const margin    = roundCUP(sale - cost);
     const marginPct = roundCUP((margin / cost) * 100);
     if (margin >= 0) {
